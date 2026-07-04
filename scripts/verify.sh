@@ -13,8 +13,8 @@
 # ------------------------------------------------------------------
 set -uo pipefail
 
-DIRS="src/components/layout src/components/ui"
-PATTERN='[0-9]+px|#[0-9a-fA-F]{6}'
+DIRS="src/components"
+PATTERN='[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\('
 fail=0
 
 echo "── 1/3  grep guard (no raw px/hex in components) ────────────"

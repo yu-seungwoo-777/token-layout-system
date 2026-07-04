@@ -14,7 +14,11 @@
   --container-max: 80rem;
   --container-padding-x: var(--space-5);
 
-  /* column ratios consumed by grid-template-columns */
-  --grid-2col-ratio: 2fr 1fr;
+  /* column ratio consumed by grid-template-columns. Only the 3-column
+   * layout needs a ratio token: its middle content track and outer
+   * sidebar/aside tracks are all proportional. The 2-column layouts
+   * size the sidebar to a fixed `--sidebar-width` and let content fill
+   * the rest (`minmax(0,1fr)`), so there's no ratio to name — see
+   * shell.tsx's `mainGrid`. */
   --grid-3col-ratio: 1fr 3fr 1fr;
 }

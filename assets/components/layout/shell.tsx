@@ -15,7 +15,7 @@ import {
 import { Header } from "./header"
 import { Footer } from "./footer"
 import { Sidebar } from "./sidebar"
-import "./layout.css"
+import "./grid.css"
 
 /**
  * Column grid for the main region. All track sizes come from layout
@@ -59,12 +59,20 @@ export interface ShellProps extends React.ComponentProps<"div"> {
   sidebarTitle?: string
 }
 
+// `hasSidebarContent`/`hasAsideContent` reflect whether the caller actually
+// passed that slot, not just whether `columns`/`sidebarPosition` requested
+// it. Sizing the grid off `columns` alone (ignoring whether `sidebar`/`aside`
+// were actually passed) reserves an empty track when a prop is requested
+// but the content is omitted — e.g. `columns={2}` with no `sidebar` used to
+// still lay out a `--sidebar-width` column with nothing in it.
 function resolveLayout(
   columns: 1 | 2 | 3,
-  sidebarPosition: "left" | "right" | "none"
+  sidebarPosition: "left" | "right" | "none",
+  hasSidebarContent: boolean,
+  hasAsideContent: boolean
 ): Layout {
-  if (columns === 1 || sidebarPosition === "none") return "one"
-  if (columns === 3) return "three"
+  if (sidebarPosition === "none" || !hasSidebarContent) return "one"
+  if (columns === 3 && hasAsideContent) return "three"
   return sidebarPosition === "right" ? "twoRight" : "twoLeft"
 }
 
@@ -75,14 +83,14 @@ function Shell({
   footer,
   sidebar,
   aside,
-  sidebarTitle = "메뉴",
+  sidebarTitle = "Menu",
   className,
   children,
   ...props
 }: ShellProps) {
-  const layout = resolveLayout(columns, sidebarPosition)
-  const hasSidebar = layout !== "one" && sidebar != null
-  const hasAside = layout === "three" && aside != null
+  const hasSidebar = columns !== 1 && sidebarPosition !== "none" && sidebar != null
+  const hasAside = columns === 3 && aside != null
+  const layout = resolveLayout(columns, sidebarPosition, hasSidebar, hasAside)
   // Divider sits on the edge facing the content: right border for a
   // left-hand sidebar, left border for a right-hand sidebar.
   const sidebarBorder = layout === "twoRight" ? "border-l" : "border-r"

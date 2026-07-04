@@ -60,9 +60,9 @@ A base-ui composition bug (`DropdownMenuLabel` used outside `DropdownMenuGroup`)
 
 ## The one non-negotiable rule
 
-No raw `px` or `#hex` in `src/components/**`. Every dimension is a token reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale utility that compiles to rem without a literal in source. Token *definition* files (`src/styles/**`) are the exception — that's the point of the raw layer. `scripts/verify.sh` enforces this with `grep -rE "[0-9]+px|#[0-9a-fA-F]{6}" src/components`.
+No raw `px` or `#hex` in `src/components/**`. Every dimension is a token reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale utility that compiles to rem without a literal in source. Token *definition* files (`src/styles/**`) are the exception — that's the point of the raw layer. `scripts/verify.sh` enforces this across the whole `src/components` tree with `grep -rE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components` — it catches px/hex/rgb/hsl literals but not bare unitless magic numbers, which still need a human read.
 
-## Nine traps worth knowing before you start
+## Eleven traps worth knowing before you start
 
 Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost real debugging time building the reference implementation, and none are caught by `tsc` or `grep`:
 
@@ -74,14 +74,16 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 6. **Responsive breakpoints go in the TSX, not as media-query px** in the grep'd directories.
 7. **A sidebar's divider border must face the content**, computed from `sidebarPosition`, or it lands on the screen edge instead of the middle.
 8. **A written-but-unrun smoke test is false safety** — install the browser and actually execute it, or it verifies nothing.
-9. **Theme toggles need `localStorage` + pre-hydration script** in production, or they reset to light on navigation and flash the wrong theme.
+9. **Redefining part of a Tailwind scale in `@theme inline` drops the untouched entries** — override `--text-sm..--text-2xl` and `text-xs`/`text-3xl`/`text-4xl` silently stop resolving.
+10. **Grid track sizing must follow actual content, not just the `columns`/`sidebarPosition` props** — `columns={2}` with no `sidebar` passed would otherwise reserve an empty `--sidebar-width` track.
+11. **Theme toggles need `localStorage` + pre-hydration script** in production, or they reset to light on navigation and flash the wrong theme.
 
 ## Contents
 
-- `SKILL.md` — the workflow Claude Code actually loads. A Korean reference translation lives at `docs/SKILL.ko.md`.
+- `SKILL.md` — the workflow Claude Code actually loads (English only — this README has a Korean translation at `README.ko.md`, but `SKILL.md` itself doesn't, since translating it doesn't change what Claude Code loads).
 - `assets/` — starter token CSS, `Shell`/`Header`/`Footer`/`Sidebar`, `globals.css` wiring, `Typography`, Playwright config + smoke spec
 - `references/shadcn-retrofit.md` — full before/after class table for retrofitting shadcn output onto the token layer
-- `references/gotchas.md` — the full write-up of the 9 traps above
+- `references/gotchas.md` — the full write-up of the 11 traps above
 - `scripts/verify.sh` — the three-layer verification pipeline
 - `evals/evals.json` — test prompts used to benchmark this skill against an unassisted baseline
 

@@ -31,8 +31,16 @@ Stack: Next.js App Router · Tailwind v4 (CSS-first `@theme`, **no
 reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale
 utility (`h-8`, `ring-3`, `min-w-24`) that compiles to rem without a px
 literal in source. This is what makes the system themeable and portable, and
-`scripts/verify.sh` enforces it. Token *definition* files (`src/styles/**`)
-may hold literals — that's the point of the raw layer.
+`scripts/verify.sh` enforces it by scanning the **entire** `src/components`
+tree (not just `layout`/`ui` — any subfolder you add, e.g. `marketing`, is
+covered too). Token *definition* files (`src/styles/**`) may hold literals —
+that's the point of the raw layer.
+
+The grep pattern catches `px` and 3/6-digit `#hex` and `rgb()`/`hsl()`
+literals, which covers the overwhelming majority of shadcn/Tailwind output.
+It does **not** catch bare magic numbers with no unit (a raw `z-index: 40` or
+an opacity literal) — those need a human read during retrofit; see
+`references/gotchas.md`.
 
 ## Workflow
 
@@ -82,9 +90,15 @@ Adjust import paths in `globals.css` to your tree (`../styles/tokens/…`).
 
 ### 2. Shell + primitives — copy from assets
 Copy `assets/components/layout/` (`shell.tsx`, `header.tsx`, `footer.tsx`,
-`sidebar.tsx`, `layout.css`) to `src/components/layout/`. Structure:
-- `layout.css` — the outer **CSS Grid Template Areas** (`header`/`main`/
-  `footer` rows). Grid, not flexbox — keep it that way.
+`sidebar.tsx`, `grid.css`) to `src/components/layout/`. Structure:
+- `grid.css` — the outer **CSS Grid Template Areas** (`header`/`main`/
+  `footer` rows), sized entirely from `src/styles/tokens/layout.css` (note:
+  two different files, both about "layout" — the token file defines
+  dimensions, this one consumes them for structure). Grid Template Areas is
+  the reference choice because it lets the header/main/footer regions stay
+  addressable by name; it's a structural decision independent of the token
+  principle, so a flexbox column driven by the same tokens is an equally
+  valid substitute if you don't need named regions.
 - `shell.tsx` — cva-driven column grid; imports `@/components/ui/sheet` for
   the mobile drawer (a legit `registryDependency`, not a self-containment
   violation).
@@ -147,7 +161,7 @@ layer runs on every change, not just when someone remembers to.
 - [ ] `Shell` `columns` prop flips 1→2→3 on one page (no layout edits)
 - [ ] responsive 3→2→1 with Sheet drawer below `md`
 - [ ] `.dark` on `<html>` recolors layout **and** portaled overlays, no edits
-- [ ] `grep -rE "[0-9]+px|#[0-9a-fA-F]{6}" src/components` → empty
+- [ ] `grep -rE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components` → empty
 - [ ] the interaction smoke **actually runs** (chromium installed) and opens
       every overlay — a spec that exists but never executed does not count
 - [ ] `bash scripts/verify.sh` → all three layers green

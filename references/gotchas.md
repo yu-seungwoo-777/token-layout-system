@@ -48,6 +48,26 @@ that only wrote the spec and reasoned "the API looks runtime-safe" shipped a
 bare `DropdownMenuLabel` (gotcha #3) that throws on open. Install chromium once
 and make the run part of the gate; treat an unexecuted spec as a failing check.
 
-## 9. Theme toggle needs persistence for production
+## 9. `@theme inline` redefining a Tailwind scale drops the rest of it
+
+If `raw.css` redefines `--text-sm` through `--text-2xl` on a custom scale
+(rather than adding new names), Tailwind's default entries for names you
+*didn't* touch in that same scale family — `text-xs`, `text-3xl`, `text-4xl`,
+etc. — disappear, because `@theme inline` replaces the scale rather than
+merging into it. This is usually the intended trade (one deliberate scale,
+no stray sizes), but it's a silent one: nothing errors, a class like
+`text-4xl` just stops resolving. If you need it, either add it explicitly to
+`raw.css`'s scale or keep it as a Tailwind default by not touching that key.
+
+## 10. A `columns`/`sidebarPosition` prop without matching content leaves an empty grid track
+
+`Shell`'s grid track sizing must be driven by whether `sidebar`/`aside`
+content was actually **passed**, not just by the `columns`/`sidebarPosition`
+props requesting a slot. Compute layout from `sidebar != null` /
+`aside != null` (see `resolveLayout` in `shell.tsx`) rather than from the
+props alone — otherwise `columns={2}` with no `sidebar` reserves a
+`--sidebar-width` track with nothing in it.
+
+## 11. Theme toggle needs persistence for production
 
 A local-state toggle resets to light on every navigation and its mount effect can force `.dark` off. For a real system, persist to `localStorage` and apply the class via an inline `<script>` in the root layout **before** hydration to avoid a flash of the wrong theme (FOUC). Fine to skip in a demo, but flag it.

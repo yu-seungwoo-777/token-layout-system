@@ -7,8 +7,11 @@ shadcn's CLI generates components against its own defaults. Two problems to fix 
 
 Re-run the grep guard after **every** `shadcn add`:
 ```
-grep -rnE "[0-9]+px|#[0-9a-fA-F]{6}" src/components/ui
+grep -rnE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components/ui
 ```
+This catches px, hex (3- and 6-digit), and `rgb()`/`hsl()` literals — it won't
+flag a bare unitless magic number (e.g. a stray `z-40` you meant as a token).
+Skim the diff for those by eye; the grep is a floor, not a full audit.
 
 ## Atomic components — before / after
 

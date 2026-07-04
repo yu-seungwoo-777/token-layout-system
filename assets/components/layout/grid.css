@@ -1,0 +1,37 @@
+/* ------------------------------------------------------------------ *
+ * grid.css — outer structure for the Shell primitive: header/main/footer
+ * rows via CSS Grid Template Areas. Not to be confused with
+ * `src/styles/tokens/layout.css`, which defines the *dimension tokens*
+ * (--header-height, --sidebar-width, ...) this file consumes — same
+ * "layout" word, different layer, hence the separate filename.
+ * Dimensions come only from those tokens; no literal px/hex here so
+ * the grep guard over components/layout stays clean.
+ *
+ * Grid Template Areas is used here because it names the header/main/
+ * footer regions once and keeps them addressable by name as the Shell
+ * grows — it isn't a requirement of the token system itself. A flexbox
+ * column (`flex flex-col`, each region sized by the same tokens) would
+ * satisfy "every value flows from a token" equally well; swap it in if
+ * you don't need named regions.
+ * ------------------------------------------------------------------ */
+.shell {
+  display: grid;
+  grid-template-areas:
+    "header"
+    "main"
+    "footer";
+  grid-template-rows: var(--header-height) minmax(0, 1fr) var(--footer-height);
+  min-height: 100dvh;
+}
+
+.shell > [data-slot="shell-header"] {
+  grid-area: header;
+}
+
+.shell > [data-slot="shell-main"] {
+  grid-area: main;
+}
+
+.shell > [data-slot="shell-footer"] {
+  grid-area: footer;
+}
