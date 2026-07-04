@@ -1,3 +1,5 @@
+**English** | [한국어](README.ko.md)
+
 # token-layout-system
 
 A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) for building a reusable, token-driven layout system in Next.js (App Router) with Tailwind v4 CSS-first `@theme` and shadcn/ui.
@@ -10,7 +12,7 @@ Drop this repo into your skills directory, or use the packaged `.skill` file wit
 
 ## Contents
 
-- `SKILL.md` — the workflow (0–6 steps: scaffold → tokens → Shell → responsive → atomics → interactive components → verify)
+- `SKILL.md` — the workflow (0–6 steps: scaffold → tokens → Shell → responsive → atomics → interactive components → verify). This is the file Claude Code actually loads; a Korean reference translation lives at `docs/SKILL.ko.md`.
 - `assets/` — starter token CSS, `Shell`/`Header`/`Footer`/`Sidebar`, `globals.css` wiring, `Typography`, Playwright config + smoke spec
 - `references/shadcn-retrofit.md` — before/after class table for retrofitting shadcn output onto the token layer
 - `references/gotchas.md` — 9 traps found while building the reference implementation (base-ui composition rules, portal dark mode, token value mismaps, etc.)
