@@ -1,0 +1,23 @@
+{
+  "skill_name": "token-layout-system",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Set up a Next.js App Router app with Tailwind v4 and a reusable layout system where all colors and sizes come from CSS design tokens (no hardcoded px or hex in components). I want a Shell component I can switch between 1, 2, and 3 columns, with a left or right sidebar that turns into a drawer on mobile, and dark mode that works without editing any component. Wire in shadcn Button, Card, Badge, Input too.",
+      "expected_output": "A Next.js project with src/styles/tokens/{raw,semantic,layout,component}.css, globals.css using @theme inline, src/components/layout/{shell,header,footer,sidebar}.tsx using grid-template-areas + cva, shadcn atomics retrofitted to tokens, and demo routes. grep for px/hex in src/components returns nothing.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I have a Tailwind v4 + shadcn project and I just ran `npx shadcn@latest add dialog dropdown-menu select switch tabs`. Wire these into my token system so nothing is hardcoded, and make sure they don't have runtime errors when opened. My tokens live in src/styles/tokens and I expose them with @theme inline.",
+      "expected_output": "The interactive components retrofitted (px arbitrary values tokenized/scale-mapped, palette classes on tokens), base-ui composition fixed (e.g. DropdownMenuLabel inside DropdownMenuGroup), a Playwright smoke test that opens each overlay and asserts no runtime errors, and grep guard passing.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "My token-based layout project already has a verify pipeline with a grep guard, a build step, and a Playwright smoke test that opens overlays and checks for runtime errors. But last week someone repointed one of my component tokens (--input-height) at the wrong step in the raw spacing scale, and the input rendered twice as tall as it should — nothing in CI caught it because the token reference was syntactically valid and nothing threw an error. I don't want that class of bug to slip through silently again. Extend my verification setup so this kind of 'valid-token-wrong-value' regression gets caught automatically, and keep the whole thing runnable as one command.",
+      "expected_output": "The pipeline gains a fourth layer: an automated check comparing rendered dimensions of related controls (e.g. asserting button and input render at the same height via getBoundingClientRect/getComputedStyle in Playwright or a dedicated script), proven to fail when the token is deliberately mis-mapped and pass once corrected — on top of the existing grep guard, build, and interaction smoke, still runnable as one command.",
+      "files": []
+    }
+  ]
+}

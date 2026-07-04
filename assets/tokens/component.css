@@ -1,0 +1,28 @@
+/* ------------------------------------------------------------------ *
+ * component.css — Layer 4: per-component exception tokens.
+ * Only for cases where a component needs a value that differs from,
+ * or is a specific pick out of, the raw/semantic scales.
+ * Every value references a raw or semantic token — no literals.
+ * ------------------------------------------------------------------ */
+:root {
+  --button-radius: var(--radius-md);
+  --button-padding-x: var(--space-3);
+  --button-padding-y: var(--space-2);
+
+  --badge-radius: var(--radius-full);
+  --badge-padding-x: var(--space-2);
+  --badge-padding-y: var(--space-1);
+
+  --input-radius: var(--radius-md);
+  --input-height: var(--space-6); /* 2rem — matches button h-8 for a consistent control height */
+
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-4);
+
+  /* interactive shadcn primitives */
+  --switch-width: 2rem;
+  --switch-height: 1.15rem;
+  --switch-width-sm: 1.5rem;
+  --switch-height-sm: 0.875rem;
+  --switch-thumb-inset: 2px;
+}

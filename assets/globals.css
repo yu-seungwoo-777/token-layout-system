@@ -1,0 +1,66 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* 4-layer token system (order matters: ours override shadcn defaults) */
+@import "../styles/tokens/raw.css";
+@import "../styles/tokens/semantic.css";
+@import "../styles/tokens/layout.css";
+@import "../styles/tokens/component.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------ *
+ * @theme inline — expose our tokens as Tailwind utilities.
+ * `inline` means utilities reference the var() at runtime, so the
+ * `.dark` overrides in semantic.css flip every utility automatically.
+ * ------------------------------------------------------------------ */
+@theme inline {
+  /* semantic colors -> bg-primary, text-muted-foreground, border-border ... */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-border: var(--color-border);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
+  --color-danger: var(--color-danger);
+  --color-danger-foreground: var(--color-danger-foreground);
+  --color-destructive: var(--color-danger); /* alias: keep bg-destructive working */
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-popover: var(--color-popover);
+  --color-popover-foreground: var(--color-popover-foreground);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
+
+  /* layout dimensions -> h-header, h-footer, w-sidebar, w-sidebar-collapsed */
+  --spacing-header: var(--header-height);
+  --spacing-footer: var(--footer-height);
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-sidebar-collapsed: var(--sidebar-width-collapsed);
+
+  /* font sizes -> text-sm ... text-2xl (Typography) */
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
