@@ -73,6 +73,10 @@ Copy `assets/components/layout/` (`shell.tsx`, `header.tsx`, `footer.tsx`,
 ```ts
 columns?: 1 | 2 | 3                       // default 1
 sidebarPosition?: "left" | "right" | "none"
+sidebarCollapsed?: boolean                // default false; shrink desktop sidebar to
+                                          //   --sidebar-width-collapsed (icon-rail mode).
+                                          //   No effect below md (sidebar is in the Sheet
+                                          //   drawer there). Ignored on columns === 3.
 header?, footer?, sidebar?, aside?: React.ReactNode
 sidebarTitle?: string                     // mobile Sheet a11y title
 ```
