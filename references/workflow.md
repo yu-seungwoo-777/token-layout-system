@@ -46,8 +46,11 @@ Copy the four files in `assets/tokens/` to `src/styles/tokens/`:
   `--input-height`, `--switch-*`…).
 
 Then wire them in `src/app/globals.css` (copy `assets/globals.css`): import
-the four files, then expose them via `@theme inline`. The `inline`
-self-reference (`--color-primary: var(--color-primary)`) is load-bearing —
+the four files, then expose them via `@theme inline`. The self-reference
+(`--color-primary: var(--color-primary)`) is what carries dark mode — the
+cycle is invalid at computed-value time, so values come from `:root`/`.dark`
+by source order (gotcha #1 has the verified mechanism; the `inline` keyword
+itself is decorative for this self-referential shape).
 see gotcha #1. This yields utilities `bg-primary`, `text-muted-foreground`,
 `h-header`, `w-sidebar`, `text-2xl`.
 

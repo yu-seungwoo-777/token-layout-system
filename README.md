@@ -35,7 +35,7 @@ The skill walks through seven steps. Full detail, exact commands, and the accept
 - `layout.css` — structural sizes (`--header-height`, `--sidebar-width`, `--grid-3col-ratio`…).
 - `component.css` — per-component exceptions (`--button-radius`, `--input-height`…).
 
-Wire them into `globals.css` via `@theme inline` — this self-referencing pattern (`--color-primary: var(--color-primary)`) is what lets `.dark`'s override win instead of Tailwind baking in the light value.
+Wire them into `globals.css` via `@theme inline` — the self-referential pattern (`--color-primary: var(--color-primary)`) is what carries dark mode, because the cycle is invalid at computed-value time and the real value resolves from `:root`/`.dark` by source order (gotcha #1 has the verified mechanism; the `inline` keyword itself is decorative for this shape).
 
 **2. `Shell` + primitives.** A cva-driven layout component using **CSS Grid Template Areas** (not flexbox) for the header/main/footer structure:
 ```ts
@@ -66,7 +66,7 @@ No raw `px` or `#hex` in `src/components/**`. Every dimension is a token referen
 
 Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost real debugging time building the reference implementation, and none are caught by `tsc` or `grep`:
 
-1. **`@theme inline` self-reference is the whole trick** for dark-mode-aware utilities — without `inline`, Tailwind bakes in the light value and dark mode never flips.
+1. **The `@theme inline` self-reference carries dark mode** — the self-referential `var(--color-primary)` cycle is invalid at computed-value time, so the real value comes from `:root`/`.dark` by source order. The `inline` keyword itself is decorative for this shape (compile-verified).
 2. **The `.dark` class must live on `<html>`**, not a nested container — portaled components (Dialog, Select, Tooltip…) render at `<body>` root and only inherit theme via `<html>`.
 3. **base-ui is stricter than Radix about composition** — a bare `DropdownMenuLabel` throws unless wrapped in `DropdownMenuGroup`. Passes every static gate; only fails at runtime.
 4. **`render={<Button/>}` remaps `data-slot`** — don't target composed triggers by their original slot name.
@@ -74,7 +74,7 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 6. **Responsive breakpoints go in the TSX, not as media-query px** in the grep'd directories.
 7. **A sidebar's divider border must face the content**, computed from `sidebarPosition`, or it lands on the screen edge instead of the middle.
 8. **A written-but-unrun smoke test is false safety** — install the browser and actually execute it, or it verifies nothing.
-9. **Redefining part of a Tailwind scale in `@theme inline` drops the untouched entries** — override `--text-sm..--text-2xl` and `text-xs`/`text-3xl`/`text-4xl` silently stop resolving.
+9. **Namespace reset (`--text-*: initial`), not partial override, drops a scale** — partially overriding `--text-sm..--text-2xl` merges with defaults (verified); only `--text-*: initial` discards the untouched entries.
 10. **Grid track sizing must follow actual content, not just the `columns`/`sidebarPosition` props** — `columns={2}` with no `sidebar` passed would otherwise reserve an empty `--sidebar-width` track.
 11. **Theme toggles need `localStorage` + pre-hydration script** in production, or they reset to light on navigation and flash the wrong theme.
 12. **OKLCH isn't stylistic — it's what makes opacity modifiers honest** — Tailwind v4 compiles `bg-primary/50` to `color-mix(in oklab, …)`, which only mixes perceptually correct when the source is OKLCH. HSL sources drift in hue/lightness at every `/N` step shadcn leans on, and no gate in the pipeline catches it.
@@ -92,4 +92,4 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 
 ## Benchmark
 
-Evaluated across an original 3-prompt benchmark (with-skill vs. baseline, no skill): **20/20 vs 16/20** on structural/correctness assertions (the assertion lists are in `evals/rubrics.md`). The clearest wins were a 4-layer token structure (vs. inlined tokens) and catching the `DropdownMenuGroup` runtime bug (gotcha #3) that passes every static gate. A follow-up eval targeting gotcha #5 (silent token value mismap) did *not* discriminate — a strong baseline model organically builds an equivalent dimension-parity check once the failure mode is described — which is itself a useful finding about where this skill's value concentrates: structural conventions and non-obvious runtime composition rules, not general "add more verification" engineering. The eval suite has since grown to 9 prompts (`evals/evals.json`) covering style drift, intent-based triggering, OKLCH correctness, and the two silent dark-mode regressions (`@theme inline` removal and `.dark` misplaced off `<html>`) — these later evals are discrimination tests, not part of the original 20/20-vs-16/20 scorecard.
+Evaluated across an original 3-prompt benchmark (with-skill vs. baseline, no skill): **20/20 vs 16/20** on structural/correctness assertions (the assertion lists are in `evals/rubrics.md`). The clearest wins were a 4-layer token structure (vs. inlined tokens) and catching the `DropdownMenuGroup` runtime bug (gotcha #3) that passes every static gate. A follow-up eval targeting gotcha #5 (silent token value mismap) did *not* discriminate — a strong baseline model organically builds an equivalent dimension-parity check once the failure mode is described — which is itself a useful finding about where this skill's value concentrates: structural conventions and non-obvious runtime composition rules, not general "add more verification" engineering. The eval suite has since grown to 9 prompts (`evals/evals.json`) covering style drift, intent-based triggering, OKLCH correctness, and a silent dark-mode regression (`.dark` misplaced off `<html>`) — these later evals are discrimination tests, not part of the original 20/20-vs-16/20 scorecard.

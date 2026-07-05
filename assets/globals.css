@@ -12,8 +12,11 @@
 
 /* ------------------------------------------------------------------ *
  * @theme inline — expose our tokens as Tailwind utilities.
- * `inline` means utilities reference the var() at runtime, so the
- * `.dark` overrides in semantic.css flip every utility automatically.
+ * The self-referential shape (`--color-primary: var(--color-primary)`)
+ * is what keeps dark mode working: the cycle is invalid at computed-value
+ * time, so the real value comes from `:root` / `.dark` in semantic.css
+ * (where `.dark` wins by source order). The `inline` keyword itself is
+ * decorative for this shape — see gotcha #1 for the verified mechanism.
  * ------------------------------------------------------------------ */
 @theme inline {
   /* semantic colors -> bg-primary, text-muted-foreground, border-border ... */
