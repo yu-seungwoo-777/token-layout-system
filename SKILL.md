@@ -19,7 +19,12 @@ color and dimension**. The payoff: switch a `Shell` prop to reflip 1/2/3
 columns, toggle `.dark` and the whole tree (including portaled overlays)
 recolors with no component edits, and a grep guard provably keeps raw
 `px`/`#hex` out of components so the system stays extractable into a shadcn
-registry later.
+registry later. What this skill adds over an unassisted build: the same
+4-layer structure every time (not a per-session improvisation), twelve
+runtime traps pre-paid in `references/gotchas.md` that no static gate
+catches, and a verify pipeline that must actually execute. Skip it for
+projects that already have a token system, or stacks other than
+Next.js + Tailwind v4 `@theme`.
 
 Stack: Next.js App Router · Tailwind v4 (CSS-first `@theme`, **no
 `tailwind.config.js`**) · shadcn/ui via **CLI** (not the shadcn skill) · cva.

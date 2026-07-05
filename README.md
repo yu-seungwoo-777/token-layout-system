@@ -8,6 +8,18 @@ It produces a 4-layer CSS token system (raw → semantic → layout → componen
 
 The architecture is component-library-agnostic; **shadcn/ui is the worked example** the workflow and gotchas are verified against, and the system's only hard shadcn dependency is `Shell`'s mobile drawer (`Sheet`) — swap that import and the same retrofit method applies to any other library's output.
 
+## Why a skill, not just a prompt
+
+A strong model can build a token layout unassisted. What it won't do reliably — and what this skill buys, per its own [benchmark](#benchmark) — concentrates in three places:
+
+1. **The same structure every time.** Unassisted runs improvise a different token organization per session (usually inlined into one file). The skill pins the 4-layer structure, so every project it touches is organized identically — that consistency, not any single technique, was the clearest benchmark win.
+2. **Pre-paid runtime knowledge no static gate catches.** The [twelve gotchas](#twelve-traps-worth-knowing-before-you-start) all pass `grep`, `tsc`, and `next build` — they only surface at runtime or by eye, and each cost real debugging time once so it doesn't cost you it again.
+3. **Verification that actually executes.** Models routinely write a Playwright spec and never run it. The skill treats an unexecuted test as a failure state, and its runtime gate targets the production build.
+
+Equally explicit about what it does *not* buy: general "add more verification" engineering. A follow-up eval showed a strong baseline builds equivalent sanity checks on its own once the failure mode is described — the skill's value is the conventions and the traps, not generic rigor.
+
+**Not for:** projects with an existing token/design system (the 4-layer structure would compete with it), Tailwind v3 or non-`@theme` setups, stacks other than Next.js App Router, or throwaway prototypes where a 3-gate verify pipeline is overhead.
+
 ## Asset contract — what's fixed, what's yours
 
 `assets/` is not all the same kind of thing. Each file falls in one of three tiers:
