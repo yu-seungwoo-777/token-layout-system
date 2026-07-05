@@ -111,7 +111,13 @@ composition rules — where the subtle, easy-to-miss bugs live. **Read
 ```
 grep guard  →  next build  →  Playwright interaction smoke (runtime)
 ```
-`scripts/verify.sh` runs all three. The `DropdownMenuGroup` composition bug
+`scripts/verify.sh` runs all three. Gate 1 also enforces the layer rule (no
+raw-palette tokens referenced from components) and emits non-blocking drift
+warnings (one-off rem/vh arbitraries, numeric inline styles); the smoke
+includes a coverage-parity test that fails when a static route exists on
+disk that the spec never walks. These target how the gates *decay* on a
+living project — see "How these gates decay" at the end of
+`references/gotchas.md`. The `DropdownMenuGroup` composition bug
 passes grep + tsc + build and only throws when the portal opens — only an
 **executed** smoke catches it. The runtime gate runs against the production
 build (`next start`), not dev, so it covers what users actually ship. An

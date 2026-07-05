@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
+import fs from "node:fs"
+import path from "node:path"
 
 /**
  * Routes the smoke test walks. Fill these in with the actual pages your
@@ -31,6 +33,48 @@ async function clickAllButtons(page: Page) {
     await page.keyboard.press("Escape").catch(() => {})
   }
 }
+
+/**
+ * Walk the App Router tree and return every static route that has a
+ * page.{tsx,ts,jsx,js}. Dynamic segments ([param]) are skipped — they need
+ * concrete params, so cover them by adding filled-in paths to `routes`
+ * manually. Route groups ((group)) are transparent per Next semantics.
+ */
+function discoverStaticRoutes(appDir: string): string[] {
+  const found: string[] = []
+  const walk = (dir: string, segments: string[]) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith("[")) continue // dynamic — can't guess params
+        const next = entry.name.startsWith("(")
+          ? segments // route group: no URL segment
+          : [...segments, entry.name]
+        walk(path.join(dir, entry.name), next)
+      } else if (/^page\.(tsx|ts|jsx|js)$/.test(entry.name)) {
+        found.push("/" + segments.join("/"))
+      }
+    }
+  }
+  if (fs.existsSync(appDir)) walk(appDir, [])
+  return found
+}
+
+// Coverage-parity gate: the hand-maintained `routes` list decays as the app
+// grows — new pages get added, the smoke list doesn't, and the spec quietly
+// verifies a shrinking slice while staying green. Fail when a static page
+// exists on disk that the smoke never walks.
+test("smoke walks every static route (coverage parity)", () => {
+  const appDir = ["src/app", "app"].find((d) => fs.existsSync(d))
+  if (!appDir) test.skip(true, "no App Router directory found")
+  const missing = discoverStaticRoutes(appDir!).filter(
+    (r) => !routes.includes(r)
+  )
+  expect(
+    missing,
+    `\nStatic routes on disk that smoke.spec.ts never visits — add them to ` +
+      `the routes array (or the smoke's coverage silently decays):\n${missing.join("\n")}`
+  ).toEqual([])
+})
 
 // Empty route list = no pages exercised = smoke verifies nothing. Fail
 // loudly rather than silently passing an unrun spec (gotcha #8).
