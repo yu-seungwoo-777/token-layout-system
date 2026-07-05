@@ -93,6 +93,7 @@ contributors editing tokens directly — see `references/workflow.md`.
 ## Acceptance checklist
 - [ ] `bg-primary`, `h-header`, `w-sidebar`, `text-2xl` utilities resolve
 - [ ] `Shell` `columns` prop flips 1→2→3 on one page (no layout edits)
+- [ ] `Shell` `sidebarCollapsed` shrinks the desktop sidebar to `--sidebar-width-collapsed` (track + Sidebar together)
 - [ ] responsive 3→2→1 with Sheet drawer below `md`
 - [ ] `.dark` on `<html>` recolors layout **and** portaled overlays, no edits
 - [ ] `grep -rE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components` → empty
@@ -110,3 +111,4 @@ contributors editing tokens directly — see `references/workflow.md`.
 - `references/workflow.md` — the seven steps in detail (read per-step)
 - `references/shadcn-retrofit.md` — before/after class table (read at steps 4–5)
 - `references/gotchas.md` — base-ui / Tailwind v4 traps (read before step 5)
+- `evals/evals.json` + `evals/rubrics.md` — prompts + pass/fail checklists for benchmarking
