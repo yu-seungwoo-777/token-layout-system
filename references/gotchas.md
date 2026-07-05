@@ -71,3 +71,9 @@ props alone — otherwise `columns={2}` with no `sidebar` reserves a
 ## 11. Theme toggle needs persistence for production
 
 A local-state toggle resets to light on every navigation and its mount effect can force `.dark` off. For a real system, persist to `localStorage` and apply the class via an inline `<script>` in the root layout **before** hydration to avoid a flash of the wrong theme (FOUC). Fine to skip in a demo, but flag it.
+
+## 12. OKLCH is not a stylistic choice — it's what makes opacity modifiers honest
+
+shadcn's Tailwind v4 themes ship colors in OKLCH, and `raw.css` follows suit. The reason isn't trendiness: Tailwind v4 compiles every opacity modifier (`bg-primary/50`, `text-danger/80`) to `color-mix(in oklab, var(--token) N%, transparent)`. `oklab` is a *perceptual* mixing space — when the source color is already OKLCH, the mix stays in the same space and the lightened/darkened result is what you'd expect by eye. When the source is `hsl(...)`, the browser converts HSL→oklab on the fly, and the perceptual midpoint between two HSL values is *not* the HSL midpoint you'd predict — light/dark variants of the "same" hue drift apart in saturation and lightness in ways that only show up at the `/50`-style usages shadcn leans on heavily.
+
+This is invisible to every gate in the pipeline (the value parses, the utility compiles, the page renders *something*). It surfaces only as a design review where "the hover state looks off in dark mode." So: when adding new colors to `raw.css`, write them in OKLCH from the start. Convert existing HSL with a calculator (`oklch.com` or the CSS `color()` function in DevTools), don't eyeball it — `hsl(221 83% 53%)` and a guessed `oklch(0.5 0.2 260)` are not the same blue. If you mix formats in one file, the inconsistency compounds at every opacity step.

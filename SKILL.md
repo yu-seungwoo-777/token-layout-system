@@ -71,7 +71,7 @@ either way.
 
 ### 1. Token layer — copy, don't hand-write
 Copy the four files in `assets/tokens/` to `src/styles/tokens/`:
-- **raw.css** — primitives only (HSL color scales, `--space-1..8`,
+- **raw.css** — primitives only (OKLCH color scales, `--space-1..8`,
   `--radius-*`, `--text-*`, weights). The *only* literals in the system.
 - **semantic.css** — role tokens (`--color-primary`, `--color-background`,
   `--color-danger`…) as `var()` of raw, redefined under `.dark`. Plus
@@ -127,6 +127,17 @@ The generated files **fail the grep guard immediately** (e.g. `ring-[3px]`,
 component (not shipped by shadcn) — copy `assets/components/typography.tsx`;
 it references the raw `text-*`/`--leading-*`/`--weight-*` scale.
 
+**Why no retrofitted `button.tsx`/`input.tsx` in `assets/`.** The shadcn CLI's
+output varies across versions and across the `style` selected at `init`
+(`base-nova` vs. a Radix-based style emit different class strings, data-slot
+names, and composition rules). A frozen "retrofitted" component would either
+need constant re-capture or — worse — drift into a wrong reference that gets
+pasted verbatim. So this skill ships the **method** (`shadcn-retrofit.md`'s
+before/after table + the grep-then-fix loop) and trusts the retrofit to be
+re-applied to whatever the CLI actually produced at this point in time. The
+style-agnostic parts (tokens, Shell, grid, verify pipeline) are the assets
+that *do* get copied verbatim.
+
 ### 5. Interactive components — the real test
 ```
 npx shadcn@latest add dialog dropdown-menu select switch tabs tooltip
@@ -137,9 +148,14 @@ focus, and base-ui composition rules** — where the subtle bugs live. Read
 `DropdownMenuGroup` requirement, #4 `render` data-slot).
 
 ### 6. Verify — three complementary gates, and actually *run* them
-Copy `assets/playwright.config.ts` and `assets/e2e/smoke.spec.ts` (adjust its
-route list to your demo pages), install Playwright **including the browser**,
-then run `scripts/verify.sh`:
+Copy `assets/playwright.config.ts` and `assets/e2e/smoke.spec.ts`. The spec
+ships with an **empty `routes` array and a guard test that fails until you
+populate it** — list every page that renders a Shell or an interactive
+component (gotcha #8: a spec pointing at routes that don't exist, or an empty
+list that passes everything, both verify nothing). Build those demo pages
+first if you haven't — at minimum one route per `columns` variant plus one
+per interactive component, so the smoke actually opens every overlay. Then
+install Playwright **including the browser**, and run `scripts/verify.sh`:
 ```
 npm i -D @playwright/test && npx playwright install chromium
 bash scripts/verify.sh        # grep guard → next build → playwright smoke

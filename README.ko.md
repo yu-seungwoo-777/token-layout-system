@@ -30,7 +30,7 @@ git clone https://github.com/yu-seungwoo-777/token-layout-system ~/.claude/skill
 **0. 스캐폴딩.** `create-next-app` + `shadcn init` + `separator`/`sheet`/`skeleton`. 설치되는 shadcn *스타일*은 그때그때 다릅니다(Radix vs. 최신 `@base-ui/react` 기반 `base-nova`) — 어떤 API를 다루는지 가정하기 전에 `components.json`의 `"style"` 필드를 먼저 확인하세요.
 
 **1. 토큰 레이어.** `src/styles/tokens/`에 CSS 파일 4개를 복사합니다:
-- `raw.css` — 순수 원시값만 (HSL 색상 스케일, `--space-1..8`, `--radius-*`, `--text-*`, font-weight). 시스템 전체에서 유일한 리터럴.
+- `raw.css` — 순수 원시값만 (OKLCH 색상 스케일, `--space-1..8`, `--radius-*`, `--text-*`, font-weight). 시스템 전체에서 유일한 리터럴.
 - `semantic.css` — 역할 기반 토큰(`--color-primary`, `--color-background`, `--color-danger`…)을 raw의 `var()`로 정의하고 `.dark`에서 재정의.
 - `layout.css` — 구조 치수(`--header-height`, `--sidebar-width`, `--grid-3col-ratio`…).
 - `component.css` — 컴포넌트별 예외(`--button-radius`, `--input-height`…).

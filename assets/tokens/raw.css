@@ -2,31 +2,42 @@
  * raw.css — Layer 1: primitive values with no meaning.
  * Nothing here references another token; these are the only literals
  * allowed in the whole system. Everything else must var() back to here.
+ *
+ * Colors use OKLCH, the format shadcn's Tailwind v4 themes ship in:
+ * opacity modifiers (bg-primary/50) compile to color-mix(in oklab, …),
+ * which is perceptually correct only when the source is OKLCH (or another
+ * wide-gamut space). HSL works but shifts hue/lightness on the oklab mix,
+ * so light and dark variants of the "same" blue drift apart. See
+ * references/gotchas.md #12.
  * ------------------------------------------------------------------ */
 :root {
-  /* --- color scales (HSL) ------------------------------------------ */
-  --gray-50: hsl(0 0% 98%);
-  --gray-100: hsl(0 0% 96%);
-  --gray-200: hsl(0 0% 90%);
-  --gray-400: hsl(0 0% 64%);
-  --gray-500: hsl(0 0% 45%);
-  --gray-700: hsl(0 0% 25%);
-  --gray-800: hsl(0 0% 15%);
-  --gray-900: hsl(0 0% 9%);
-  --gray-950: hsl(0 0% 4%);
+  /* --- color scales (OKLCH) ---------------------------------------- *
+   * L = perceptual lightness (0..1), C = chroma (0..~0.37 for sRGB),
+   * H = hue angle (deg). For true grays C ≈ 0 and H is meaningless;
+   * we still emit it for parse consistency.
+   * ------------------------------------------------------------------ */
+  --gray-50:  oklch(0.985 0.000 0);
+  --gray-100: oklch(0.970 0.000 0);
+  --gray-200: oklch(0.923 0.000 0);
+  --gray-400: oklch(0.716 0.000 0);
+  --gray-500: oklch(0.555 0.000 0);
+  --gray-700: oklch(0.371 0.000 0);
+  --gray-800: oklch(0.270 0.000 0);
+  --gray-900: oklch(0.204 0.000 0);
+  --gray-950: oklch(0.146 0.000 0);
 
-  --blue-400: hsl(213 94% 68%);
-  --blue-500: hsl(217 91% 60%);
-  --blue-600: hsl(221 83% 53%);
-  --blue-700: hsl(224 76% 48%);
+  --blue-400: oklch(0.716 0.143 254.5);
+  --blue-500: oklch(0.626 0.186 259.6);
+  --blue-600: oklch(0.545 0.215 262.7);
+  --blue-700: oklch(0.490 0.215 264.3);
 
-  --red-400: hsl(0 91% 71%);
-  --red-500: hsl(0 84% 60%);
-  --red-600: hsl(0 72% 51%);
-  --red-700: hsl(0 74% 42%);
+  --red-400:  oklch(0.712 0.166 22.2);
+  --red-500:  oklch(0.636 0.208 25.4);
+  --red-600:  oklch(0.579 0.214 27.2);
+  --red-700:  oklch(0.508 0.192 27.6);
 
-  --white: hsl(0 0% 100%);
-  --black: hsl(0 0% 0%);
+  --white: oklch(1.000 0.000 0);
+  --black: oklch(0.000 0.000 0);
 
   /* --- spacing scale ----------------------------------------------- */
   --space-1: 0.25rem;
@@ -44,7 +55,14 @@
   --radius-lg: 0.75rem;
   --radius-full: 9999px;
 
-  /* --- font-size scale (Typography) -------------------------------- */
+  /* --- font-size scale (Typography) -------------------------------- *
+   * Only sm..2xl are defined. Because globals.css re-exposes these as
+   * `@theme inline { --text-* }`, defining *any* --text-* name replaces
+   * Tailwind's default font-size scale rather than merging into it — so
+   * `text-xs`, `text-3xl`, `text-4xl`, … silently stop resolving under
+   * this skill (gotcha #9). If you need them, add the entries here on
+   * the same scale; don't assume Tailwind's defaults still apply.
+   * ------------------------------------------------------------------ */
   --text-sm: 0.875rem;
   --text-base: 1rem;
   --text-lg: 1.125rem;

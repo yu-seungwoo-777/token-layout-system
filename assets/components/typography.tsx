@@ -11,11 +11,11 @@ import { cn } from "@/lib/utils"
 const typographyVariants = cva("", {
   variants: {
     variant: {
-      h1: "text-2xl leading-[var(--leading-tight)] font-[var(--weight-bold)] text-foreground",
-      h2: "text-xl leading-[var(--leading-tight)] font-[var(--weight-bold)] text-foreground",
-      h3: "text-lg leading-[var(--leading-normal)] font-[var(--weight-medium)] text-foreground",
-      body: "text-base leading-[var(--leading-relaxed)] font-[var(--weight-normal)] text-foreground",
-      muted: "text-sm leading-[var(--leading-normal)] font-[var(--weight-normal)] text-muted-foreground",
+      h1: "text-2xl leading-(--leading-tight) font-(--weight-bold) text-foreground",
+      h2: "text-xl leading-(--leading-tight) font-(--weight-bold) text-foreground",
+      h3: "text-lg leading-(--leading-normal) font-(--weight-medium) text-foreground",
+      body: "text-base leading-(--leading-relaxed) font-(--weight-normal) text-foreground",
+      muted: "text-sm leading-(--leading-normal) font-(--weight-normal) text-muted-foreground",
     },
   },
   defaultVariants: { variant: "body" },
