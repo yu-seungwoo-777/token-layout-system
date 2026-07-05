@@ -2,7 +2,13 @@
  * component.css — Layer 4: per-component exception tokens.
  * Only for cases where a component needs a value that differs from,
  * or is a specific pick out of, the raw/semantic scales.
- * Every value references a raw or semantic token — no literals.
+ * When a value coincides with an existing raw/semantic entry, reference
+ * it with var() rather than repeating the literal (so the two stay in
+ * sync if the scale ever changes). A literal here is fine when the
+ * value is a genuine one-off with no reusable scale meaning of its own
+ * (e.g. a single component's pixel offset) — that's what this layer is
+ * for. Either way this file lives under src/styles/, which the grep
+ * guard exempts; components.tsx must still never hold a literal.
  * ------------------------------------------------------------------ */
 :root {
   --button-radius: var(--radius-md);
@@ -20,9 +26,9 @@
   --card-padding: var(--space-4);
 
   /* interactive shadcn primitives */
-  --switch-width: 2rem;
-  --switch-height: 1.15rem;
-  --switch-width-sm: 1.5rem;
-  --switch-height-sm: 0.875rem;
-  --switch-thumb-inset: 2px;
+  --switch-width: var(--space-6);      /* coincides with space-6 */
+  --switch-height: 1.15rem;            /* one-off: no scale entry matches shadcn's Switch track height */
+  --switch-width-sm: var(--space-5);   /* coincides with space-5 */
+  --switch-height-sm: var(--text-sm);  /* coincides with text-sm */
+  --switch-thumb-inset: 2px;           /* one-off: finer than the rem spacing scale goes */
 }

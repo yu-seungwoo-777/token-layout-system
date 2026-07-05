@@ -10,13 +10,25 @@
     {
       "id": 2,
       "prompt": "I have a Tailwind v4 + shadcn project and I just ran `npx shadcn@latest add dialog dropdown-menu select switch tabs`. Wire these into my token system so nothing is hardcoded, and make sure they don't have runtime errors when opened. My tokens live in src/styles/tokens and I expose them with @theme inline.",
-      "expected_output": "The interactive components retrofitted (px arbitrary values tokenized/scale-mapped, palette classes on tokens), base-ui composition fixed (e.g. DropdownMenuLabel inside DropdownMenuGroup), a Playwright smoke test that opens each overlay and asserts no runtime errors, and grep guard passing.",
+      "expected_output": "The interactive components retrofitted (px arbitrary values tokenized/scale-mapped, palette classes on tokens), correct composition for whichever component library was actually generated (e.g. DropdownMenuLabel inside DropdownMenuGroup on base-ui — this rule doesn't apply if the CLI gave a Radix style instead), a Playwright smoke test that opens each overlay and asserts no runtime errors, and grep guard passing.",
       "files": []
     },
     {
       "id": 3,
       "prompt": "My token-based layout project already has a verify pipeline with a grep guard, a build step, and a Playwright smoke test that opens overlays and checks for runtime errors. But last week someone repointed one of my component tokens (--input-height) at the wrong step in the raw spacing scale, and the input rendered twice as tall as it should — nothing in CI caught it because the token reference was syntactically valid and nothing threw an error. I don't want that class of bug to slip through silently again. Extend my verification setup so this kind of 'valid-token-wrong-value' regression gets caught automatically, and keep the whole thing runnable as one command.",
       "expected_output": "The pipeline gains a fourth layer: an automated check comparing rendered dimensions of related controls (e.g. asserting button and input render at the same height via getBoundingClientRect/getComputedStyle in Playwright or a dedicated script), proven to fail when the token is deliberately mis-mapped and pass once corrected — on top of the existing grep guard, build, and interaction smoke, still runnable as one command.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Set up a fresh Next.js App Router project with Tailwind v4 and shadcn/ui, and build the same token-driven layout system: 4-layer CSS tokens (raw/semantic/layout/component), a Shell with 1/2/3 column variants and a sidebar that becomes a Sheet drawer on mobile, dark mode with zero component edits, and shadcn Button/Card/Input/Dialog/Select retrofitted so nothing is hardcoded. I ran `npx shadcn@latest init -d` and it gave me a Radix-based style (not base-ui/base-nova), so the components.json `style` field and the generated component internals look different from a base-ui setup.",
+      "expected_output": "The same 4-layer token architecture, Shell, grid-template-areas, and grep-guard verify pipeline as the base-ui case, but the retrofit is adapted to Radix component internals (correct Radix primitives/data-slot names, Radix-specific composition rules) rather than blindly pasting base-ui-specific class strings or gotchas from the bundled reference assets. The result still passes the grep guard, `next build`, and an executed Playwright smoke test that opens every overlay.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Set up a fresh Next.js App Router project with Tailwind v4 and shadcn/ui, and build the same token-driven layout system: 4-layer CSS tokens (raw/semantic/layout/component), a Shell with 1/2/3 column variants and a sidebar that becomes a Sheet drawer on mobile, dark mode with zero component edits, and shadcn Button/Card/Input/Dialog/DropdownMenu/Select retrofitted so nothing is hardcoded. Force the Radix-based style explicitly: run `npx shadcn@latest init -b radix -p nova` (or whatever flag combination your installed shadcn CLI version uses to select a Radix-based style) instead of the default, so components.json's `style` field and every generated component's internals are genuinely Radix, not base-ui.",
+      "expected_output": "Same as eval 4, but this time the style drift is real (components.json confirms a Radix style, component files import from `radix-ui`/`@radix-ui/*`), so the retrofit must actually diverge from the skill's bundled base-ui-specific assets/gotchas: no forced DropdownMenuGroup wrapper (that's a base-ui-only composition rule), correct Radix primitive names and asChild/Slot patterns instead of base-ui's render={<Button/>} pattern. The 4-layer tokens, Shell, and grep guard are still copied/built verbatim since those parts are style-agnostic. grep guard, next build, and an executed Playwright smoke test all pass.",
       "files": []
     }
   ]
