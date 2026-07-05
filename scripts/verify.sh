@@ -18,14 +18,20 @@
 # run. Don't switch webServer.command back to "npm run dev" unless you
 # also accept the dev-only blind spot.
 # ------------------------------------------------------------------
+# Deliberately no `set -e`: all three gates must run even when an earlier
+# one fails, so a single pass reports every failure at once.
 set -uo pipefail
 
-DIRS="src/components"
-PATTERN='[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\('
+# Add more dirs to the array as the guarded surface grows (e.g. src/app).
+DIRS=("src/components")
+# px, hex (3–8 digits: #rgb/#rgba/#rrggbb/#rrggbbaa), and any CSS color
+# function literal — rgb/hsl and the wide-gamut ones (oklch/oklab/lab/lch),
+# so a raw oklch() pasted into a component is caught, not just legacy hex.
+PATTERN='[0-9]+px|#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\('
 fail=0
 
 echo "── 1/3  grep guard (no raw px/hex in components) ────────────"
-if grep -rnE "$PATTERN" $DIRS 2>/dev/null; then
+if grep -rnE "$PATTERN" "${DIRS[@]}" 2>/dev/null; then
   echo "❌ hardcoded values found — replace with token references (var(--…) or Tailwind scale)"
   fail=1
 else

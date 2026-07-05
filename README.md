@@ -2,9 +2,23 @@
 
 # token-layout-system
 
-A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) for building a reusable, token-driven layout system in Next.js (App Router) with Tailwind v4 CSS-first `@theme` and shadcn/ui.
+A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) for building a reusable, token-driven layout system in Next.js (App Router) with Tailwind v4 CSS-first `@theme`.
 
-It produces a 4-layer CSS token system (raw → semantic → layout → component), a `Shell` component with switchable 1/2/3 columns and a responsive sidebar-to-Sheet drawer, and shadcn components retrofitted so every color and dimension flows from one token source — dark mode works with zero component edits.
+It produces a 4-layer CSS token system (raw → semantic → layout → component), a `Shell` component with switchable 1/2/3 columns and a responsive sidebar-to-drawer, and library components retrofitted so every color and dimension flows from one token source — dark mode works with zero component edits.
+
+The architecture is component-library-agnostic; **shadcn/ui is the worked example** the workflow and gotchas are verified against, and the system's only hard shadcn dependency is `Shell`'s mobile drawer (`Sheet`) — swap that import and the same retrofit method applies to any other library's output.
+
+## Asset contract — what's fixed, what's yours
+
+`assets/` is not all the same kind of thing. Each file falls in one of three tiers:
+
+| Tier | Files | What's fixed | What's yours |
+|---|---|---|---|
+| **Structure (contract)** | `tokens/*.css`, `globals.css` | the 4-layer shape, no layer skipping, the `@theme inline` self-referential wiring, import order | every *value* — colors, scales, sizes |
+| **Scaffold (copy & own)** | `components/layout/*`, `typography.tsx`, Playwright config + spec | must keep passing the grep guard | everything else — fork it, it's yours, don't expect updates |
+| **Method (no files shipped)** | shadcn/library components | the retrofit loop (`references/shadcn-retrofit.md`) + grep-then-fix | which library, which components, generated fresh each time |
+
+Nothing in `assets/` is a dependency you update from — it's a starting point you take ownership of. Only the token *structure* and the grep rule are non-negotiable, because they're what the verify pipeline enforces.
 
 ## Install
 
@@ -47,7 +61,7 @@ sidebarTitle?: string                     // mobile Sheet a11y title
 
 **3. Responsive.** `3col → (lg) 2col → (md) 1col + Sheet drawer`; `2col → (md) 1col + Sheet`. Tailwind's default breakpoints only — no custom breakpoints, no media-query px inside components.
 
-**4. Atomic components.** `shadcn add button input badge card`, then retrofit each against [`references/shadcn-retrofit.md`](references/shadcn-retrofit.md)'s before/after table — freshly generated shadcn output fails the grep guard immediately (`ring-[3px]`, `rounded-[min(var(--radius-md),10px)]`, etc.), so this step isn't optional cleanup. Also add `Typography` (shadcn doesn't ship one).
+**4. Atomic components.** `shadcn add button input badge card` (or generate equivalents from your library of choice), then retrofit each against [`references/shadcn-retrofit.md`](references/shadcn-retrofit.md)'s before/after table — freshly generated shadcn output fails the grep guard immediately (`ring-[3px]`, `rounded-[min(var(--radius-md),10px)]`, etc.), so this step isn't optional cleanup. Also add `Typography` (shadcn doesn't ship one).
 
 **5. Interactive components.** `shadcn add dialog dropdown-menu select switch tabs tooltip`, same retrofit pass. These exercise portals, focus, and composition rules — where the subtle, easy-to-miss bugs live. Read [`references/gotchas.md`](references/gotchas.md) first.
 
@@ -60,7 +74,7 @@ A base-ui composition bug (`DropdownMenuLabel` used outside `DropdownMenuGroup`)
 
 ## The one non-negotiable rule
 
-No raw `px` or `#hex` in `src/components/**`. Every dimension is a token reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale utility that compiles to rem without a literal in source. Token *definition* files (`src/styles/**`) are the exception — that's the point of the raw layer. `scripts/verify.sh` enforces this across the whole `src/components` tree with `grep -rE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components` — it catches px/hex/rgb/hsl literals but not bare unitless magic numbers, which still need a human read.
+No raw `px` or `#hex` in `src/components/**`. Every dimension is a token reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale utility that compiles to rem without a literal in source. Token *definition* files (`src/styles/**`) are the exception — that's the point of the raw layer. `scripts/verify.sh` enforces this across the whole `src/components` tree with `grep -rE "[0-9]+px|#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\(" src/components` — it catches px, 3–8-digit hex, and CSS color-function literals, but not bare unitless magic numbers, which still need a human read.
 
 ## Twelve traps worth knowing before you start
 

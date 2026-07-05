@@ -56,12 +56,13 @@
   --radius-full: 9999px;
 
   /* --- font-size scale (Typography) -------------------------------- *
-   * Only sm..2xl are defined. Because globals.css re-exposes these as
-   * `@theme inline { --text-* }`, defining *any* --text-* name replaces
-   * Tailwind's default font-size scale rather than merging into it — so
-   * `text-xs`, `text-3xl`, `text-4xl`, … silently stop resolving under
-   * this skill (gotcha #9). If you need them, add the entries here on
-   * the same scale; don't assume Tailwind's defaults still apply.
+   * Only sm..2xl are overridden. Partial overrides MERGE with Tailwind's
+   * default scale (compile-verified, gotcha #9) — `text-xs`, `text-3xl`,
+   * `text-4xl`, … keep resolving to the defaults. The actual footgun is
+   * a namespace reset (`--text-*: initial`), which discards the whole
+   * scale before re-adding what follows; this file deliberately never
+   * does that. Change the values freely; keep the names on Tailwind's
+   * scale so the merge stays coherent.
    * ------------------------------------------------------------------ */
   --text-sm: 0.875rem;
   --text-base: 1rem;

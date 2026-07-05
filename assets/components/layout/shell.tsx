@@ -1,5 +1,11 @@
 "use client"
 
+// This file is a scaffold you copy and OWN — fork it freely; the only
+// contract is that it keeps passing the grep guard (no raw px/hex/color
+// literals). The Sheet import below is the system's single shadcn/ui
+// dependency: to use another component library, swap it (and the
+// SheetTrigger/SheetContent JSX in Shell) for any equivalent drawer.
+
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { MenuIcon } from "lucide-react"
