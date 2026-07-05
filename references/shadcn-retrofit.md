@@ -13,39 +13,46 @@ This catches px, hex (3- and 6-digit), and `rgb()`/`hsl()` literals — it won't
 flag a bare unitless magic number (e.g. a stray `z-40` you meant as a token).
 Skim the diff for those by eye; the grep is a floor, not a full audit.
 
+**Syntax for token references.** Prefer Tailwind v4's shorthand
+`utility-(--token)` over the bracket form `utility-[var(--token)]` — they
+compile identically but the shorthand reads cleaner and matches the rest of
+the skill's assets. Use the bracket form only when the value isn't a bare
+`var()` (e.g. `grid-cols-[var(--sidebar-width)_minmax(0,1fr)]`, where the
+column expression is a composite the shorthand can't express).
+
 ## Atomic components — before / after
 
 | Component | before (shadcn default) | after (token) |
 |---|---|---|
-| button (base) | `rounded-lg` | `rounded-[var(--button-radius)]` |
+| button (base) | `rounded-lg` | `rounded-(--button-radius)` |
 | button default | `hover:bg-primary/80` | `hover:bg-primary-hover` |
 | button destructive | `bg-destructive/10 text-destructive hover:bg-destructive/20 …` | `bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-danger/40` |
 | button size default/lg | `px-2.5` | `px-(--button-padding-x)` |
-| button xs/sm/icon | `rounded-[min(var(--radius-md),10px)]` / `,12px)]` | `rounded-[var(--button-radius)]` |
-| badge | `rounded-4xl` | `rounded-[var(--badge-radius)]` |
+| button xs/sm/icon | `rounded-[min(var(--radius-md),10px)]` / `,12px)]` | `rounded-(--button-radius)` |
+| badge | `rounded-4xl` | `rounded-(--badge-radius)` |
 | badge | `px-2 py-0.5` | `px-(--badge-padding-x) py-(--badge-padding-y)` |
 | badge | `focus-visible:ring-[3px]` | `focus-visible:ring-3` |
 | input | `h-8` | `h-(--input-height)` |
-| input | `rounded-lg` | `rounded-[var(--input-radius)]` |
-| card | `rounded-xl`, `rounded-t/b-xl` | `rounded-[var(--card-radius)]`, `rounded-t/b-[var(--card-radius)]` |
+| input | `rounded-lg` | `rounded-(--input-radius)` |
+| card | `rounded-xl`, `rounded-t/b-xl` | `rounded-(--card-radius)`, `rounded-t/b-(--card-radius)` |
 | card | `[--card-spacing:--spacing(4)]` / `--spacing(3)` | `[--card-spacing:var(--card-padding)]` / `var(--space-3)` |
 
 ## Interactive components — before / after
 
 | Component | before | after |
 |---|---|---|
-| switch (track) | `h-[18.4px] w-[32px] h-[14px] w-[24px]` | `h-[var(--switch-height)] w-[var(--switch-width)] …-sm` (add `--switch-*` tokens) |
+| switch (track) | `h-[18.4px] w-[32px] h-[14px] w-[24px]` | `h-(--switch-height) w-(--switch-width) …-sm` (add `--switch-*` tokens) |
 | switch (thumb) | `translate-x-[calc(100%-2px)]` | `translate-x-[calc(100%-var(--switch-thumb-inset))]` |
-| tooltip (arrow) | `translate-y-[calc(-50%-2px)]`, `rounded-[2px]` | `-translate-y-1/2`, `rounded-[var(--radius-sm)]` |
+| tooltip (arrow) | `translate-y-[calc(-50%-2px)]`, `rounded-[2px]` | `-translate-y-1/2`, `rounded-(--radius-sm)` |
 | tabs (list) | `p-[3px]` | `p-1` |
 | tabs (trigger) | `h-[calc(100%-1px)]`, `ring-[3px]` | `h-full`, `ring-3` |
 | tabs (underline) | `after:bottom-[-5px]` | `after:-bottom-1` |
-| select (sm) | `rounded-[min(var(--radius-md),10px)]` | `rounded-[var(--radius-md)]` |
+| select (sm) | `rounded-[min(var(--radius-md),10px)]` | `rounded-(--radius-md)` |
 | dropdown (sub) | `min-w-[96px]` | `min-w-24` |
 
 **Rule of thumb for each px value:**
 - On the raw scale already? → Tailwind scale utility (`ring-3`, `p-1`, `min-w-24`, `h-full`).
-- A real design value used in >1 place, or an odd magic number? → add a `--<component>-*` token to `component.css` and reference it (`h-[var(--switch-height)]`).
+- A real design value used in >1 place, or an odd magic number? → add a `--<component>-*` token to `component.css` and reference it (`h-(--switch-height)`).
 - A tiny cosmetic nudge (a 1–2px offset)? → drop it or round to the nearest scale step; not worth a token.
 
 ## Why palette classes already "just work"

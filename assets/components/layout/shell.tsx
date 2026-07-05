@@ -25,7 +25,7 @@ import "./grid.css"
  * Only Tailwind's default breakpoints (md/lg) are used.
  */
 const mainGrid = cva(
-  "mx-auto grid w-full max-w-[var(--container-max)] gap-(--layout-gap) p-(--container-padding-x)",
+  "mx-auto grid w-full max-w-(--container-max) gap-(--layout-gap) p-(--container-padding-x)",
   {
     variants: {
       layout: {
@@ -108,7 +108,7 @@ function Shell({
           <Sheet>
             <SheetTrigger
               aria-label={sidebarTitle}
-              className="inline-flex items-center gap-(--space-2) rounded-[var(--button-radius)] border border-border px-(--button-padding-x) py-(--button-padding-y) text-sm md:hidden"
+              className="inline-flex items-center gap-(--space-2) rounded-(--button-radius) border border-border px-(--button-padding-x) py-(--button-padding-y) text-sm md:hidden"
             >
               <MenuIcon className="size-4" />
               <span>{sidebarTitle}</span>

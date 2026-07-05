@@ -10,6 +10,13 @@
 # The three layers are complementary: the dropdown "MenuGroupContext is
 # missing" bug passes grep AND build AND tsc — only step 3 catches it,
 # because it only throws when the portal actually opens.
+#
+# Step 3 runs against the PRODUCTION build (`next start`), not `next dev`:
+# dev skips optimizations (tree-shaking, RSC serialization, dynamic-import
+# resolution) that only fail once you ship. Building once and serving the
+# artifact means the runtime gate covers what production users actually
+# run. Don't switch webServer.command back to "npm run dev" unless you
+# also accept the dev-only blind spot.
 # ------------------------------------------------------------------
 set -uo pipefail
 

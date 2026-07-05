@@ -30,7 +30,7 @@ The skill walks through seven steps. Full detail, exact commands, and the accept
 **0. Scaffold.** `create-next-app` + `shadcn init` + `separator`/`sheet`/`skeleton`. The installed shadcn *style* varies (Radix vs. the newer `@base-ui/react`-based `base-nova`) — check `components.json`'s `"style"` field before assuming which API you're dealing with.
 
 **1. Token layer.** Copy four CSS files into `src/styles/tokens/`:
-- `raw.css` — primitives only (HSL color scales, `--space-1..8`, `--radius-*`, `--text-*`, weights). The only literals in the whole system.
+- `raw.css` — primitives only (OKLCH color scales, `--space-1..8`, `--radius-*`, `--text-*`, weights). The only literals in the whole system.
 - `semantic.css` — role tokens (`--color-primary`, `--color-background`, `--color-danger`…) as `var()` of raw, redefined under `.dark`.
 - `layout.css` — structural sizes (`--header-height`, `--sidebar-width`, `--grid-3col-ratio`…).
 - `component.css` — per-component exceptions (`--button-radius`, `--input-height`…).
@@ -62,7 +62,7 @@ A base-ui composition bug (`DropdownMenuLabel` used outside `DropdownMenuGroup`)
 
 No raw `px` or `#hex` in `src/components/**`. Every dimension is a token reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale utility that compiles to rem without a literal in source. Token *definition* files (`src/styles/**`) are the exception — that's the point of the raw layer. `scripts/verify.sh` enforces this across the whole `src/components` tree with `grep -rE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components` — it catches px/hex/rgb/hsl literals but not bare unitless magic numbers, which still need a human read.
 
-## Eleven traps worth knowing before you start
+## Twelve traps worth knowing before you start
 
 Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost real debugging time building the reference implementation, and none are caught by `tsc` or `grep`:
 
