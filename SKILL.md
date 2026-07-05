@@ -62,8 +62,9 @@ the light value — it's load-bearing, not a stylistic choice.
 Footer, Sidebar, grid CSS). Grid Template Areas for the header/main/footer
 regions, driven entirely from layout tokens.
 
-**3. Responsive.** `3col → (lg) 2col → (md) 1col + Sheet`; `2col → (md) 1col`.
-Tailwind default breakpoints only — no media-query px in components.
+**3. Responsive.** `3col → (lg) 2col → (md) 1col + Sheet`; `2col → (md)
+1col + Sheet`. Tailwind default breakpoints only — no media-query px in
+components.
 
 **4. Atomic components.** `shadcn add button input badge card`, then retrofit.
 Freshly generated shadcn output **fails the grep guard immediately** — this

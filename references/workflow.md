@@ -1,9 +1,10 @@
 # Build workflow — the seven steps in detail
 
 This file expands the workflow sketch in `SKILL.md`. Read the section for
-the step you're on; you don't need the whole file up front. The SKILL.md
-copy stays the authoritative overview — when the two disagree, SKILL.md wins
-and this file is out of date.
+the step you're on; you don't need the whole file up front. **If the
+SKILL.md summary and this file disagree, this file is correct and the
+SKILL.md sketch is stale — fix the summary to match.** The summary exists
+to route readers; the detail lives here.
 
 ## 0. Scaffold
 

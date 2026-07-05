@@ -77,6 +77,7 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 9. **Redefining part of a Tailwind scale in `@theme inline` drops the untouched entries** — override `--text-sm..--text-2xl` and `text-xs`/`text-3xl`/`text-4xl` silently stop resolving.
 10. **Grid track sizing must follow actual content, not just the `columns`/`sidebarPosition` props** — `columns={2}` with no `sidebar` passed would otherwise reserve an empty `--sidebar-width` track.
 11. **Theme toggles need `localStorage` + pre-hydration script** in production, or they reset to light on navigation and flash the wrong theme.
+12. **OKLCH isn't stylistic — it's what makes opacity modifiers honest** — Tailwind v4 compiles `bg-primary/50` to `color-mix(in oklab, …)`, which only mixes perceptually correct when the source is OKLCH. HSL sources drift in hue/lightness at every `/N` step shadcn leans on, and no gate in the pipeline catches it.
 
 ## Contents
 
@@ -90,4 +91,4 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 
 ## Benchmark
 
-Evaluated across 3 test prompts (with-skill vs. baseline, no skill): **20/20 vs 16/20** on structural/correctness assertions. The clearest wins were a 4-layer token structure (vs. inlined tokens) and catching the `DropdownMenuGroup` runtime bug (gotcha #3) that passes every static gate. A follow-up eval targeting gotcha #5 (silent token value mismap) did *not* discriminate — a strong baseline model organically builds an equivalent dimension-parity check once the failure mode is described — which is itself a useful finding about where this skill's value concentrates: structural conventions and non-obvious runtime composition rules, not general "add more verification" engineering.
+Evaluated across an original 3-prompt benchmark (with-skill vs. baseline, no skill): **20/20 vs 16/20** on structural/correctness assertions. The clearest wins were a 4-layer token structure (vs. inlined tokens) and catching the `DropdownMenuGroup` runtime bug (gotcha #3) that passes every static gate. A follow-up eval targeting gotcha #5 (silent token value mismap) did *not* discriminate — a strong baseline model organically builds an equivalent dimension-parity check once the failure mode is described — which is itself a useful finding about where this skill's value concentrates: structural conventions and non-obvious runtime composition rules, not general "add more verification" engineering. The eval suite has since grown to 8 prompts (`evals/evals.json`) covering style drift, intent-based triggering, OKLCH correctness, and the `@theme inline` dark-mode invariant — these later evals are discrimination tests, not part of the original 20/20-vs-16/20 scorecard.
