@@ -156,6 +156,25 @@ on open. Installing chromium is a one-time cost; pay it, and make the run part
 of the gate. Wire `verify.sh` into CI / a `"verify"` npm script so the runtime
 layer runs on every change, not just when someone remembers to.
 
+**Optional 4th gate: a static token-resolution check.** The grep guard catches
+literals; the Playwright smoke catches things that throw. Neither catches a
+*silent* regression where someone repoints a component token at the wrong
+rung of the raw/semantic scale — e.g. `--input-height: var(--space-7)` instead
+of `var(--space-6)` — because the reference is syntactically valid and nothing
+errors. That class of bug is real but rare enough that it's not part of the
+default three-gate pipeline above; add a fourth gate only if you've hit it or
+expect to (e.g. a design system with many contributors editing tokens
+directly). Two options, either is fine:
+- A small script that resolves each component token's full `var()` chain down
+  to a concrete pixel value and diffs it against an expected value — cheap,
+  runs before the build step, so it fails fast.
+- A Playwright assertion comparing `getBoundingClientRect()` of two controls
+  that should render at the same size (e.g. Button vs. Input height) — catches
+  it against the real rendered DOM, at the cost of needing a full build first.
+Whichever you add, prove it actually works the same way you proved the smoke
+test does: deliberately mis-map a token, run the check, confirm it fails with
+a useful message, then fix it and confirm it passes.
+
 ## Acceptance checklist
 - [ ] `bg-primary`, `h-header`, `w-sidebar`, `text-2xl` utilities resolve
 - [ ] `Shell` `columns` prop flips 1→2→3 on one page (no layout edits)

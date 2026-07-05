@@ -2,7 +2,17 @@
  * component.css — Layer 4: per-component exception tokens.
  * Only for cases where a component needs a value that differs from,
  * or is a specific pick out of, the raw/semantic scales.
- * Every value references a raw or semantic token — no literals.
+ *
+ * Prefer var() over a literal when the value coincides with an existing
+ * raw/semantic entry — but only within the SAME scale family (spacing for
+ * a dimension, text for a font-size). Referencing `var(--text-sm)` for a
+ * width, even when the values match today, couples unrelated scales: a
+ * future typography change would silently resize a control. When no
+ * same-family entry matches, keep the literal with a one-line "why"
+ * comment; that genuine one-off is exactly what this layer is for.
+ *
+ * This file lives under src/styles/, which the grep guard exempts;
+ * components.tsx must still never hold a literal.
  * ------------------------------------------------------------------ */
 :root {
   --button-radius: var(--radius-md);
@@ -20,9 +30,9 @@
   --card-padding: var(--space-4);
 
   /* interactive shadcn primitives */
-  --switch-width: 2rem;
-  --switch-height: 1.15rem;
-  --switch-width-sm: 1.5rem;
-  --switch-height-sm: 0.875rem;
-  --switch-thumb-inset: 2px;
+  --switch-width: var(--space-6);      /* coincides with space-6 (same family: spacing → width) */
+  --switch-height: 1.15rem;            /* one-off: no scale entry matches shadcn's Switch track height */
+  --switch-width-sm: var(--space-5);   /* coincides with space-5 (same family: spacing → width) */
+  --switch-height-sm: 0.875rem;        /* literal, not var(--text-sm): text scale is a different family, don't couple a control's height to a font-size */
+  --switch-thumb-inset: 2px;           /* one-off: finer than the rem spacing scale goes */
 }
