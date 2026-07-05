@@ -54,9 +54,10 @@ Architecture (tokens, Shell, grep guard, verify) is style-agnostic; component
 internals and gotchas are style-specific (worked examples, not drop-ins).
 
 **1. Token layer.** Copy the 4-layer CSS into `src/styles/tokens/` (raw →
-semantic → layout → component) and wire via `@theme inline`. The `inline`
-self-reference is what lets `.dark` overrides win without Tailwind baking in
-the light value — it's load-bearing, not a stylistic choice.
+semantic → layout → component) and wire via `@theme inline`. The
+self-referential `var(--x)` pattern is what keeps dark mode working (the
+cycle is invalid at computed-value time, so values come from
+`:root`/`.dark` by source order) — see gotcha #1 for the verified mechanism.
 
 **2. `Shell` + primitives.** Copy `assets/components/layout/` (Shell, Header,
 Footer, Sidebar, grid CSS). Grid Template Areas for the header/main/footer

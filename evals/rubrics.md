@@ -102,15 +102,15 @@ passes a subset — the delta is the skill's measurable contribution.
 | 7.5 | **no component file edited** to swap colors (button.tsx, input.tsx untouched) | `git diff` shows changes only in `src/styles/**` |
 | 7.6 | grep guard still clean | see eval 1.8 |
 
-## Eval 8 — diagnose `@theme inline` removal
+## Eval 8 — diagnose `--text-*: initial` namespace reset
 
 | # | Assertion | How to verify |
 |---|---|---|
-| 8.1 | root cause correctly identified: **Tailwind emits a shadowing `:root --color-primary`** baked to the light value when `inline` is absent | output mentions Tailwind emitting its own variable / shadowing variable / source order |
-| 8.2 | the mechanism is stated precisely (NOT "the utility itself becomes static") | output does NOT claim the utility stops emitting `var(--color-primary)`; it clarifies the utility still emits `var()`, only the shadowing variable differs |
-| 8.3 | fix applied: `inline` keyword restored | `grep "@theme inline" globals.css` returns ≥ 1 |
-| 8.4 | dark mode works again after fix (bg-primary flips in `.dark`) | manual or computed-style check |
-| 8.5 | recognizes this regression is invisible to error-only gates (grep/build/smoke all green) but a computed-style assertion would catch it | output mentions the gate-blindness AND the computed-style extension |
+| 8.1 | root cause correctly identified: **`--text-*: initial` is a Tailwind v4 namespace reset** that discards the entire `--text-*` namespace (including Tailwind defaults like `--text-xs`/`3xl`/`4xl`) before re-adding the explicitly-named entries | output mentions namespace reset / `initial` discarding the namespace / `--text-*: initial` being the cause |
+| 8.2 | the mechanism is stated precisely: partial override **merges** with defaults (not replaces) — the reset, not the override, is the footgun | output does NOT claim partial override alone drops defaults; it distinguishes the two and points at `initial` as the cause |
+| 8.3 | fix applied: the `--text-*: initial;` line removed | `grep "text-\\*: initial" globals.css` returns nothing |
+| 8.4 | `text-xs`/`text-3xl`/`text-4xl` resolve again after fix | manual or computed-style check; or compile and grep for `.text-xs`/`.text-3xl`/`.text-4xl` in output |
+| 8.5 | recognizes this is invisible to error-only gates (grep/build/smoke all green) — the classes just silently emit no `font-size` | output mentions the gate-blindness |
 
 ## Eval 9 — diagnose `.dark` on wrapper instead of `<html>`
 

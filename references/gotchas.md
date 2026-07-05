@@ -2,9 +2,9 @@
 
 Hard-won traps from building the reference implementation. Most cost real debugging time and none are caught by `tsc` or `grep` — read before you repeat them.
 
-## 1. `@theme inline` self-reference is the whole trick
+## 1. The `@theme inline` self-reference: what actually makes dark mode work
 
-To get a dark-mode-aware `bg-primary` utility, define the role token in `semantic.css` (`:root` + `.dark`) and reference it from `@theme inline`:
+To get a dark-mode-aware `bg-primary` utility, define the role token in `semantic.css` (`:root` + `.dark`) and re-declare it inside `@theme inline`:
 ```css
 /* semantic.css */
 :root { --color-primary: var(--blue-600); }
@@ -12,7 +12,11 @@ To get a dark-mode-aware `bg-primary` utility, define the role token in `semanti
 /* globals.css */
 @theme inline { --color-primary: var(--color-primary); }
 ```
-`inline` means the utility emits `var(--color-primary)` and Tailwind does **not** write its own `--color-primary` — so no circular definition, and `.dark` overrides win. Without `inline`, Tailwind bakes the light value in and dark mode won't flip.
+What actually carries the dark-mode flip is **not** the `inline` keyword — it's the **self-referential `var()`**. A `--color-primary: var(--color-primary)` declaration is invalid at computed-value time (a CSS cycle), so the value Tailwind bakes into the `@theme` block is effectively a no-op. The real values come from `:root` and `.dark` in `semantic.css`, where `.dark` wins by source order on `<html class="dark">`. Compile-verified on Tailwind v4.1 and v4.3: the CSS output is byte-identical with or without `inline` for this self-referential shape.
+
+`inline` **does** matter elsewhere — when a `@theme` value is a concrete literal or a non-self-referential `var(--other)`, `inline` controls whether the utility inlines the value or emits its own variable. But for the self-referential `var(--same-name)` pattern this skill ships, `inline` is decorative. Keep it (it documents intent and future-proofs against a refactor that breaks the self-reference), but don't believe it's load-bearing here — that misdiagnosis was real and shipped in earlier versions of this gotcha, and it misleads anyone trying to debug dark mode by toggling `inline`.
+
+The part that *is* load-bearing: the `:root` + `.dark` pair in `semantic.css`, and importing `semantic.css` (not just `raw.css`) before the `@theme` block in `globals.css` so the cascade resolves correctly.
 
 ## 2. Dark class must live on `<html>`, not a container
 
@@ -48,16 +52,19 @@ that only wrote the spec and reasoned "the API looks runtime-safe" shipped a
 bare `DropdownMenuLabel` (gotcha #3) that throws on open. Install chromium once
 and make the run part of the gate; treat an unexecuted spec as a failing check.
 
-## 9. `@theme inline` redefining a Tailwind scale drops the rest of it
+## 9. `--scale-*: initial` (namespace reset), not partial override, drops the rest of a scale
 
-If `raw.css` redefines `--text-sm` through `--text-2xl` on a custom scale
-(rather than adding new names), Tailwind's default entries for names you
-*didn't* touch in that same scale family — `text-xs`, `text-3xl`, `text-4xl`,
-etc. — disappear, because `@theme inline` replaces the scale rather than
-merging into it. This is usually the intended trade (one deliberate scale,
-no stray sizes), but it's a silent one: nothing errors, a class like
-`text-4xl` just stops resolving. If you need it, either add it explicitly to
-`raw.css`'s scale or keep it as a Tailwind default by not touching that key.
+Earlier versions of this gotcha claimed that redefining `--text-sm` through `--text-2xl` in `@theme` causes `text-xs`/`text-3xl`/`text-4xl` to silently disappear. **Compile-verified on Tailwind v4.1 and v4.3: that's wrong.** Partially overriding entries in a namespace **merges** with the defaults — the untouched entries (`--text-xs`, `--text-3xl`, `--text-4xl`) still resolve to Tailwind's defaults. You can see both sets in the output: the overridden entries emit literal values, the default ones emit `var(--text-3xl)` etc., and both work.
+
+What *does* drop the rest of a scale is an explicit **namespace reset**:
+```css
+@theme {
+  --text-*: initial;   /* this is the actual footgun */
+  --text-sm: 0.875rem;
+  /* ... */
+}
+```
+`--text-*: initial` tells Tailwind to discard the entire `--text-*` namespace before re-adding what follows. Now `text-xs`/`text-3xl`/`text-4xl` really do stop resolving — silently, no error. This is sometimes the intended trade (one deliberate scale, no stray sizes) but it's a trap if you didn't mean it. The skill's `raw.css` does **not** do this — it only overrides specific entries, so the default scale stays intact. If you ever reach for `--scale-*: initial` to "clean up" the defaults, that's the moment to also re-add every entry you still need.
 
 ## 10. A `columns`/`sidebarPosition` prop without matching content leaves an empty grid track
 
