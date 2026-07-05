@@ -84,3 +84,29 @@ A local-state toggle resets to light on every navigation and its mount effect ca
 shadcn's Tailwind v4 themes ship colors in OKLCH, and `raw.css` follows suit. The reason isn't trendiness: Tailwind v4 compiles every opacity modifier (`bg-primary/50`, `text-danger/80`) to `color-mix(in oklab, var(--token) N%, transparent)`. `oklab` is a *perceptual* mixing space — when the source color is already OKLCH, the mix stays in the same space and the lightened/darkened result is what you'd expect by eye. When the source is `hsl(...)`, the browser converts HSL→oklab on the fly, and the perceptual midpoint between two HSL values is *not* the HSL midpoint you'd predict — light/dark variants of the "same" hue drift apart in saturation and lightness in ways that only show up at the `/50`-style usages shadcn leans on heavily.
 
 This is invisible to every gate in the pipeline (the value parses, the utility compiles, the page renders *something*). It surfaces only as a design review where "the hover state looks off in dark mode." So: when adding new colors to `raw.css`, write them in OKLCH from the start. Convert existing HSL with a calculator (`oklch.com` or the CSS `color()` function in DevTools), don't eyeball it — `hsl(221 83% 53%)` and a guessed `oklch(0.5 0.2 260)` are not the same blue. If you mix formats in one file, the inconsistency compounds at every opacity step.
+## How these gates decay over time (read at month 3, not day 1)
+
+The pipeline is tuned for *setup-time* correctness; over a project's life it
+decays along known paths, none of which turn a gate red:
+
+- **Letter-vs-spirit drift.** `w-[4.25rem]`, `mt-[3vh]`, and numeric inline
+  styles (`style={{ width: 68 }}` renders as px with no "px" in source) all
+  pass the literal grep while being exactly the one-off magic values the
+  token system exists to prevent. `verify.sh` now surfaces these as a
+  non-blocking drift warning — treat a growing warning list as the signal.
+- **Literal migration into the token layer.** `src/styles/**` legitimately
+  holds literals, so pressure pushes one-off values there as fake tokens
+  (`--hero-card-height-mobile`). The gate stays green while the 4-layer
+  structure degrades into a constants file. Review token diffs for "tokens"
+  with exactly one consumer.
+- **Layer skipping.** A component referencing `var(--gray-500)` directly
+  bypasses the semantic layer with no literal in sight. `verify.sh`'s
+  layer rule now fails raw-*palette* references from components; extend
+  its prefix list when you add palettes.
+- **Smoke route-list rot.** New pages don't add themselves to
+  `smoke.spec.ts`. The coverage-parity test now fails when a static route
+  exists on disk that the smoke never walks; dynamic routes still need
+  hand-added concrete paths.
+- **Verify gets skipped.** As `next build` slows, running `verify.sh` less
+  often is gotcha #8 applied to the whole pipeline. Wire it into CI so
+  skipping stops being an option.

@@ -19,10 +19,35 @@ color and dimension**. The payoff: switch a `Shell` prop to reflip 1/2/3
 columns, toggle `.dark` and the whole tree (including portaled overlays)
 recolors with no component edits, and a grep guard provably keeps raw
 `px`/`#hex` out of components so the system stays extractable into a shadcn
-registry later.
+registry later. What this skill adds over an unassisted build: the same
+4-layer structure every time (not a per-session improvisation), twelve
+runtime traps pre-paid in `references/gotchas.md` that no static gate
+catches, and a verify pipeline that must actually execute. Skip it for
+projects that already have a token system, or stacks other than
+Next.js + Tailwind v4 `@theme`.
 
 Stack: Next.js App Router · Tailwind v4 (CSS-first `@theme`, **no
 `tailwind.config.js`**) · shadcn/ui via **CLI** (not the shadcn skill) · cva.
+shadcn is the **worked example**, not a requirement: the architecture
+(tokens, Shell, grep guard, verify) has exactly one shadcn dependency —
+`Shell`'s mobile drawer imports `Sheet` from `@/components/ui/sheet`. To use
+another component library, swap that import for any equivalent drawer/dialog
+and apply the same retrofit loop (steps 4–5) to that library's output.
+
+## Asset contract — what to copy, what to change, what to own
+
+- `assets/tokens/*.css` — copy verbatim, then **change values freely**; the
+  4-layer *structure* (raw → semantic → layout → component, no layer
+  skipping) is the contract. Keep `--text-*` names on Tailwind's scale and
+  never add a `--text-*: initial` namespace reset (gotcha #9).
+- `assets/globals.css` — the `@theme inline` self-referential shape is the
+  contract (gotcha #1); import order (`semantic.css` before `@theme`) is
+  load-bearing.
+- `assets/components/layout/*`, `typography.tsx` — a **scaffold you copy and
+  own**, not a library you update from. Fork it to your needs; it just has
+  to keep passing the grep guard.
+- shadcn (or other library) components — never shipped frozen here; you
+  generate them and retrofit per `references/shadcn-retrofit.md`.
 
 ## The one non-negotiable rule
 
@@ -35,10 +60,11 @@ tree (not just `layout`/`ui` — any subfolder you add, e.g. `marketing`, is
 covered too). Token *definition* files (`src/styles/**`) may hold literals —
 that's the point of the raw layer.
 
-The grep pattern catches `px` and 3/6-digit `#hex` and `rgb()`/`hsl()`
-literals, which covers the overwhelming majority of shadcn/Tailwind output.
-It does **not** catch bare magic numbers with no unit (a raw `z-index: 40` or
-an opacity literal) — those need a human read during retrofit; see
+The grep pattern catches `px`, 3–8-digit `#hex`, and CSS color-function
+literals (`rgb()`/`hsl()`/`oklch()`/`oklab()`/`lab()`/`lch()`/`color()`),
+which covers the overwhelming majority of shadcn/Tailwind output. It does
+**not** catch bare magic numbers with no unit (a raw `z-index: 40` or an
+opacity literal) — those need a human read during retrofit; see
 `references/gotchas.md`.
 
 ## Workflow — seven steps
@@ -67,7 +93,8 @@ regions, driven entirely from layout tokens.
 1col + Sheet`. Tailwind default breakpoints only — no media-query px in
 components.
 
-**4. Atomic components.** `shadcn add button input badge card`, then retrofit.
+**4. Atomic components.** `shadcn add button input badge card` (or generate
+equivalents from your library of choice), then retrofit.
 Freshly generated shadcn output **fails the grep guard immediately** — this
 isn't optional cleanup. Typography is copied from assets (shadcn doesn't ship
 it). *Why no retrofitted `button.tsx` in assets?* shadcn CLI output varies
@@ -84,7 +111,13 @@ composition rules — where the subtle, easy-to-miss bugs live. **Read
 ```
 grep guard  →  next build  →  Playwright interaction smoke (runtime)
 ```
-`scripts/verify.sh` runs all three. The `DropdownMenuGroup` composition bug
+`scripts/verify.sh` runs all three. Gate 1 also enforces the layer rule (no
+raw-palette tokens referenced from components) and emits non-blocking drift
+warnings (one-off rem/vh arbitraries, numeric inline styles); the smoke
+includes a coverage-parity test that fails when a static route exists on
+disk that the spec never walks. These target how the gates *decay* on a
+living project — see "How these gates decay" at the end of
+`references/gotchas.md`. The `DropdownMenuGroup` composition bug
 passes grep + tsc + build and only throws when the portal opens — only an
 **executed** smoke catches it. The runtime gate runs against the production
 build (`next start`), not dev, so it covers what users actually ship. An
@@ -97,7 +130,7 @@ contributors editing tokens directly — see `references/workflow.md`.
 - [ ] `Shell` `sidebarCollapsed` shrinks the desktop sidebar to `--sidebar-width-collapsed` (track + Sidebar together)
 - [ ] responsive 3→2→1 with Sheet drawer below `md`
 - [ ] `.dark` on `<html>` recolors layout **and** portaled overlays, no edits
-- [ ] `grep -rE "[0-9]+px|#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|rgba?\(|hsla?\(" src/components` → empty
+- [ ] `grep -rE "[0-9]+px|#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\(" src/components` → empty
 - [ ] the interaction smoke **actually runs** (chromium installed) and opens
       every overlay — a spec that exists but never executed does not count
 - [ ] `bash scripts/verify.sh` → all three layers green
