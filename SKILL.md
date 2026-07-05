@@ -1,16 +1,15 @@
 ---
 name: token-layout-system
 description: >-
-  Build a reusable, token-driven layout system in Next.js (App Router) with
-  Tailwind v4 CSS-first @theme and shadcn/ui. Produces a 4-layer CSS token
-  system (raw → semantic → layout → component), a Shell component with
-  switchable 1/2/3 columns and a responsive sidebar-to-Sheet drawer, and
-  shadcn components retrofitted so every color and dimension flows from one
-  token source (dark mode with zero component edits). Use this whenever the
-  user wants a design-token layout, a reusable Header/Footer/Sidebar Shell,
-  column/grid layout variants, Tailwind v4 @theme token architecture, a
-  shadcn component library wired to CSS variables, or asks to keep hardcoded
-  px/hex out of components — even if they don't say "token system" by name.
+  Build a token-driven layout system in Next.js (App Router) + Tailwind v4
+  (`@theme`) + shadcn/ui: a 4-layer CSS token architecture, a `Shell` with
+  switchable 1/2/3 columns and responsive sidebar-to-Sheet drawer, shadcn
+  components retrofitted so every color and dimension flows from one token
+  source, and a verify pipeline that keeps raw px/hex out of components.
+  Triggers on any of: design tokens / CSS variables for theming, a reusable
+  Header/Footer/Sidebar `Shell`, 1/2/3-column or grid layout variants,
+  Tailwind v4 `@theme` wiring, shadcn wired to CSS variables, dark mode via
+  tokens, or keeping hardcoded px/hex out of components.
 ---
 
 # Token Layout System
@@ -28,7 +27,7 @@ Stack: Next.js App Router · Tailwind v4 (CSS-first `@theme`, **no
 ## The one non-negotiable rule
 
 **No raw `px` or `#hex` in `src/components/**`.** Every value is a token
-reference — `var(--token)`, a `[var(--token)]` arbitrary, or a Tailwind scale
+reference — `var(--token)`, a `(--token)` arbitrary, or a Tailwind scale
 utility (`h-8`, `ring-3`, `min-w-24`) that compiles to rem without a px
 literal in source. This is what makes the system themeable and portable, and
 `scripts/verify.sh` enforces it by scanning the **entire** `src/components`
@@ -42,154 +41,53 @@ It does **not** catch bare magic numbers with no unit (a raw `z-index: 40` or
 an opacity literal) — those need a human read during retrofit; see
 `references/gotchas.md`.
 
-## Workflow
+## Workflow — seven steps
 
-### 0. Scaffold
+Each step below says *what* and *why* in brief. For exact commands, class
+tables, and the verify-gate rationale, **read `references/workflow.md`** as
+you enter each step. Read `references/gotchas.md` before step 5.
+
+**0. Scaffold.** `create-next-app` + `shadcn init` + `separator`/`sheet`/
+`skeleton`. The installed shadcn *style* varies (Radix vs. the newer
+`@base-ui/react`-based `base-nova`) — confirm which before assuming its APIs.
+Architecture (tokens, Shell, grep guard, verify) is style-agnostic; component
+internals and gotchas are style-specific (worked examples, not drop-ins).
+
+**1. Token layer.** Copy the 4-layer CSS into `src/styles/tokens/` (raw →
+semantic → layout → component) and wire via `@theme inline`. The `inline`
+self-reference is what lets `.dark` overrides win without Tailwind baking in
+the light value — it's load-bearing, not a stylistic choice.
+
+**2. `Shell` + primitives.** Copy `assets/components/layout/` (Shell, Header,
+Footer, Sidebar, grid CSS). Grid Template Areas for the header/main/footer
+regions, driven entirely from layout tokens.
+
+**3. Responsive.** `3col → (lg) 2col → (md) 1col + Sheet`; `2col → (md) 1col`.
+Tailwind default breakpoints only — no media-query px in components.
+
+**4. Atomic components.** `shadcn add button input badge card`, then retrofit.
+Freshly generated shadcn output **fails the grep guard immediately** — this
+isn't optional cleanup. Typography is copied from assets (shadcn doesn't ship
+it). *Why no retrofitted `button.tsx` in assets?* shadcn CLI output varies
+across versions and styles; a frozen file would drift into a wrong reference.
+The skill ships the **method** (retrofit table + grep-then-fix loop), not the
+frozen output.
+
+**5. Interactive components.** `shadcn add dialog dropdown-menu select switch
+tabs tooltip`, same retrofit pass. These exercise portals, focus, and
+composition rules — where the subtle, easy-to-miss bugs live. **Read
+`references/gotchas.md` first.**
+
+**6. Verify — three complementary gates, actually run them.**
 ```
-npx create-next-app@latest <app> --typescript --tailwind --app --src-dir --import-alias "@/*"
-cd <app>
-npx shadcn@latest init -d          # detects Next + Tailwind v4; writes components.json
-npx shadcn@latest add separator sheet skeleton
+grep guard  →  next build  →  Playwright interaction smoke (runtime)
 ```
-Note the actual versions: `create-next-app@latest` may install Next 16 and a
-shadcn style (`base-nova`) built on `@base-ui/react` rather than Radix. The
-approach is identical; just expect base-ui APIs (see `references/gotchas.md`).
-
-**What generalizes vs. what's style-specific.** Confirm which style you got:
-`grep '"style"' components.json` and check whether `button.tsx` imports
-`@base-ui/react` or `@radix-ui`. The *architecture* always transfers — the
-4-layer tokens, `@theme inline`, Shell, grep guard, and verify pipeline are
-style-agnostic, so copy those assets verbatim. But `assets/components/*` and
-`references/gotchas.md` were captured against the **base-ui / base-nova** style;
-if the CLI gave you a Radix-based style, treat them as a *worked example*, not a
-drop-in: the generated component internals differ, so apply the
-`shadcn-retrofit.md` **principles** (re-grep after every `add`; map each px/hex
-to a token) rather than pasting class strings, and expect different composition
-rules than the base-ui ones in gotchas. The one invariant across styles: fresh
-shadcn output smuggles in raw px, so the grep-then-retrofit loop is mandatory
-either way.
-
-### 1. Token layer — copy, don't hand-write
-Copy the four files in `assets/tokens/` to `src/styles/tokens/`:
-- **raw.css** — primitives only (OKLCH color scales, `--space-1..8`,
-  `--radius-*`, `--text-*`, weights). The *only* literals in the system.
-- **semantic.css** — role tokens (`--color-primary`, `--color-background`,
-  `--color-danger`…) as `var()` of raw, redefined under `.dark`. Plus
-  unprefixed aliases (`--primary`…) for base-ui internals that read them.
-- **layout.css** — `--header-height`, `--sidebar-width`, `--grid-3col-ratio`…
-- **component.css** — per-component exception tokens (`--button-radius`,
-  `--input-height`, `--switch-*`…).
-
-Then wire them in `src/app/globals.css` (copy `assets/globals.css`): import
-the four files, then expose them via `@theme inline`. The `inline`
-self-reference (`--color-primary: var(--color-primary)`) is load-bearing —
-see gotcha #1. This yields utilities `bg-primary`, `text-muted-foreground`,
-`h-header`, `w-sidebar`, `text-2xl`.
-
-Adjust import paths in `globals.css` to your tree (`../styles/tokens/…`).
-
-### 2. Shell + primitives — copy from assets
-Copy `assets/components/layout/` (`shell.tsx`, `header.tsx`, `footer.tsx`,
-`sidebar.tsx`, `grid.css`) to `src/components/layout/`. Structure:
-- `grid.css` — the outer **CSS Grid Template Areas** (`header`/`main`/
-  `footer` rows), sized entirely from `src/styles/tokens/layout.css` (note:
-  two different files, both about "layout" — the token file defines
-  dimensions, this one consumes them for structure). Grid Template Areas is
-  the reference choice because it lets the header/main/footer regions stay
-  addressable by name; it's a structural decision independent of the token
-  principle, so a flexbox column driven by the same tokens is an equally
-  valid substitute if you don't need named regions.
-- `shell.tsx` — cva-driven column grid; imports `@/components/ui/sheet` for
-  the mobile drawer (a legit `registryDependency`, not a self-containment
-  violation).
-
-`Shell` props:
-```ts
-columns?: 1 | 2 | 3                       // default 1
-sidebarPosition?: "left" | "right" | "none"
-header?, footer?, sidebar?, aside?: React.ReactNode
-sidebarTitle?: string                     // mobile Sheet a11y title
-```
-
-### 3. Responsive (already wired in shell.tsx)
-`3col → (lg) 2col → (md) 1col + Sheet`; `2col → (md) 1col + Sheet`. Tailwind
-default breakpoints only; **no custom breakpoints, no media-query px in
-components** (gotcha #6). Below `md` the sidebar hides and opens via the
-shadcn `Sheet`.
-
-### 4. Atomic components — add via CLI, then retrofit
-```
-npx shadcn@latest add button input badge card
-```
-The generated files **fail the grep guard immediately** (e.g. `ring-[3px]`,
-`rounded-[min(var(--radius-md),10px)]`). Retrofit each per
-`references/shadcn-retrofit.md` (before/after table). Then add the Typography
-component (not shipped by shadcn) — copy `assets/components/typography.tsx`;
-it references the raw `text-*`/`--leading-*`/`--weight-*` scale.
-
-**Why no retrofitted `button.tsx`/`input.tsx` in `assets/`.** The shadcn CLI's
-output varies across versions and across the `style` selected at `init`
-(`base-nova` vs. a Radix-based style emit different class strings, data-slot
-names, and composition rules). A frozen "retrofitted" component would either
-need constant re-capture or — worse — drift into a wrong reference that gets
-pasted verbatim. So this skill ships the **method** (`shadcn-retrofit.md`'s
-before/after table + the grep-then-fix loop) and trusts the retrofit to be
-re-applied to whatever the CLI actually produced at this point in time. The
-style-agnostic parts (tokens, Shell, grid, verify pipeline) are the assets
-that *do* get copied verbatim.
-
-### 5. Interactive components — the real test
-```
-npx shadcn@latest add dialog dropdown-menu select switch tabs tooltip
-```
-Re-run the grep guard and retrofit (same table). These exercise **portals,
-focus, and base-ui composition rules** — where the subtle bugs live. Read
-`references/gotchas.md` before wiring them (esp. #2 portal dark, #3
-`DropdownMenuGroup` requirement, #4 `render` data-slot).
-
-### 6. Verify — three complementary gates, and actually *run* them
-Copy `assets/playwright.config.ts` and `assets/e2e/smoke.spec.ts`. The spec
-ships with an **empty `routes` array and a guard test that fails until you
-populate it** — list every page that renders a Shell or an interactive
-component (gotcha #8: a spec pointing at routes that don't exist, or an empty
-list that passes everything, both verify nothing). Build those demo pages
-first if you haven't — at minimum one route per `columns` variant plus one
-per interactive component, so the smoke actually opens every overlay. Then
-install Playwright **including the browser**, and run `scripts/verify.sh`:
-```
-npm i -D @playwright/test && npx playwright install chromium
-bash scripts/verify.sh        # grep guard → next build → playwright smoke
-```
-Why all three: the `DropdownMenuGroup` bug passes grep, tsc, **and** build —
-it only throws when the portal opens. Only the smoke, *executed*, catches it.
-
-**A smoke test that is written but never run protects nothing.** Skipping
-`playwright install`, or committing the spec without executing it, is the exact
-failure mode that ships a latent "throws the moment you open it" bug while every
-static gate stays green — verified in practice: a run that only *wrote* the spec
-and asserted "looks runtime-safe" shipped a bare `DropdownMenuLabel` that throws
-on open. Installing chromium is a one-time cost; pay it, and make the run part
-of the gate. Wire `verify.sh` into CI / a `"verify"` npm script so the runtime
-layer runs on every change, not just when someone remembers to.
-
-**Optional 4th gate: a static token-resolution check.** The grep guard catches
-literals; the Playwright smoke catches things that throw. Neither catches a
-*silent* regression where someone repoints a component token at the wrong
-rung of the raw/semantic scale — e.g. `--input-height: var(--space-7)` instead
-of `var(--space-6)` — because the reference is syntactically valid and nothing
-errors. That class of bug is real but rare enough that it's not part of the
-default three-gate pipeline above; add a fourth gate only if you've hit it or
-expect to (e.g. a design system with many contributors editing tokens
-directly). Two options, either is fine:
-- A small script that resolves each component token's full `var()` chain down
-  to a concrete pixel value and diffs it against an expected value — cheap,
-  runs before the build step, so it fails fast.
-- A Playwright assertion comparing `getBoundingClientRect()` of two controls
-  that should render at the same size (e.g. Button vs. Input height) — catches
-  it against the real rendered DOM, at the cost of needing a full build first.
-Whichever you add, prove it actually works the same way you proved the smoke
-test does: deliberately mis-map a token, run the check, confirm it fails with
-a useful message, then fix it and confirm it passes.
+`scripts/verify.sh` runs all three. The `DropdownMenuGroup` composition bug
+passes grep + tsc + build and only throws when the portal opens — only an
+**executed** smoke catches it. The runtime gate runs against the production
+build (`next start`), not dev, so it covers what users actually ship. An
+optional 4th gate (token-resolution check) exists for design systems with many
+contributors editing tokens directly — see `references/workflow.md`.
 
 ## Acceptance checklist
 - [ ] `bg-primary`, `h-header`, `w-sidebar`, `text-2xl` utilities resolve
@@ -208,5 +106,6 @@ a useful message, then fix it and confirm it passes.
 - `assets/components/typography.tsx` — Typography (shadcn doesn't ship it)
 - `assets/playwright.config.ts`, `assets/e2e/smoke.spec.ts` — runtime gate
 - `scripts/verify.sh` — the 3-layer verify pipeline
+- `references/workflow.md` — the seven steps in detail (read per-step)
 - `references/shadcn-retrofit.md` — before/after class table (read at steps 4–5)
 - `references/gotchas.md` — base-ui / Tailwind v4 traps (read before step 5)

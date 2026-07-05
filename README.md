@@ -82,8 +82,9 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 
 - `SKILL.md` — the workflow Claude Code actually loads (English only — this README has a Korean translation at `README.ko.md`, but `SKILL.md` itself doesn't, since translating it doesn't change what Claude Code loads).
 - `assets/` — starter token CSS, `Shell`/`Header`/`Footer`/`Sidebar`, `globals.css` wiring, `Typography`, Playwright config + smoke spec
+- `references/workflow.md` — the seven build steps in detail (read per-step as you enter each one)
 - `references/shadcn-retrofit.md` — full before/after class table for retrofitting shadcn output onto the token layer
-- `references/gotchas.md` — the full write-up of the 11 traps above
+- `references/gotchas.md` — the full write-up of the 12 traps above
 - `scripts/verify.sh` — the three-layer verification pipeline
 - `evals/evals.json` — test prompts used to benchmark this skill against an unassisted baseline
 

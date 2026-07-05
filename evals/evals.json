@@ -30,6 +30,18 @@
       "prompt": "Environment: an empty working directory. Start fresh with create-next-app (App Router, TypeScript, Tailwind v4, src-dir) and build the same token-driven layout system: 4-layer CSS tokens (raw/semantic/layout/component), a Shell with 1/2/3 column variants and a sidebar that becomes a Sheet drawer on mobile, dark mode with zero component edits, and shadcn Button/Card/Input/Dialog/DropdownMenu/Select retrofitted so nothing is hardcoded. Force the Radix-based style explicitly: run `npx shadcn@latest init -b radix -p nova` (or whatever flag combination your installed shadcn CLI version uses to select a Radix-based style) instead of the default, so components.json's `style` field and every generated component's internals are genuinely Radix, not base-ui.",
       "expected_output": "Same as eval 4, but this time the style drift is real (components.json confirms a Radix style, component files import from `radix-ui`/`@radix-ui/*`), so the retrofit must actually diverge from the skill's bundled base-ui-specific assets/gotchas: no forced DropdownMenuGroup wrapper (that's a base-ui-only composition rule), correct Radix primitive names and asChild/Slot patterns instead of base-ui's render={<Button/>} pattern. The 4-layer tokens, Shell, and grep guard are still copied/built verbatim since those parts are style-agnostic. grep guard, next build, and an executed Playwright smoke test all pass.",
       "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Environment: an empty working directory, no project yet. Casual ask, no jargon: 'next.js로 대시보드 하나 만들어줘. 헤더/사이드바/푸터 있는거. 다크모드 토글도 넣고. shadcn 쓸거야. 컴포넌트에 px나 hex 하드코딩된거 싫은데 그런 부분 알아서 빼줘' — translate intent: build the full token-driven layout system the skill describes, even though the user never said 'token', 'design token', '@theme', or 'CSS variable'. The skill should trigger on the constellation of signals (Shell-like layout, dark mode, shadcn, no hardcoded values), not on the keyword.",
+      "expected_output": "The skill triggers and produces the same 4-layer token architecture, Shell with header/sidebar/footer + responsive sidebar-to-Sheet drawer, dark-mode toggle on <html>, and shadcn components retrofitted to tokens — matching eval 1's output even though the prompt used no skill-specific vocabulary. grep guard, next build, and an executed Playwright smoke all pass. A pass here proves the description's intent-based triggers actually fire; a fail (skill doesn't trigger, or model asks clarifying questions instead of building) exposes a description that over-relies on exact keyword matching.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "Environment: an existing Next.js + Tailwind v4 + shadcn project (the end state of eval 1). Casual follow-up: '색깔 좀 바꿔볼래? primary를 파랑에서 보라로. 그리고 사이드바 폭 좀 넓게. 다크모드도 같이 바뀌어야 해' — change the primary color from blue to purple and widen the sidebar, with dark mode tracking automatically. Tests whether the model recognizes this is a token-layer edit (one raw.css entry + the dark override), not a component-by-component rewrite. No 'token' keyword in the prompt; the skill should still apply its 'one source of truth' principle.",
+      "expected_output": "The edit lands in exactly two places: raw.css (the --blue-* scale or a new --purple-* scale) and semantic.css's :root + .dark --color-primary mapping. No component file is touched — bg-primary, hover states, ring colors, and dark-mode variants all reflow from the token change. Sidebar width changes via --sidebar-width in layout.css only. grep guard still clean. A fail here (model edits button.tsx, input.tsx, etc. one-by-one to swap colors) shows the skill's central thesis didn't transmit.",
+      "files": []
     }
   ]
 }
