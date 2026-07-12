@@ -21,6 +21,7 @@ import { spawnSync } from "node:child_process";
 const SCRIPT_DIR = path.dirname(new URL(import.meta.url).pathname);
 const CONVERTER = path.join(SCRIPT_DIR, "extract-dc.mjs");
 const FIXTURE = path.join(SCRIPT_DIR, "__fixtures__", "mini.dc.html");
+const MOCKUP_FIXTURE = path.join(SCRIPT_DIR, "__fixtures__", "mini-mockup.dc.html");
 
 function runConverter(outDir, extra = []) {
   return spawnSync(process.execPath, [CONVERTER, FIXTURE, "--out", outDir, ...extra], {
@@ -142,6 +143,130 @@ test("--strict still fails on the WCAG-AA muted-foreground pair (light)", () => 
     const res = runConverter(out, ["--strict"]);
     assert.notEqual(res.status, 0, "--strict should exit non-zero on a WCAG fail");
     assert.match(res.stderr, /WCAG AA fail/);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("§6 reports light-mode literals when the slate ramp is empty (mockup DC)", () => {
+  // A mockup .dc.html carries the theme blocks (so semantic.css is generated)
+  // but its renderVals() returns UI data, not token arrays — the "raw scales
+  // empty" degradation path. With slate absent, every light-mode color role
+  // resolves to an OKLCH literal, and §6 must list those light rows. Before
+  // the resolveRole fix, only `mode === "dark"` literals were tracked, so §6
+  // silently dropped light-mode literals and under-reported the real count.
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out], {
+      encoding: "utf8",
+    });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    const report = fs.readFileSync(path.join(out, "_report.md"), "utf8");
+    // §1 must warn the raw scales are empty (the degradation path fired).
+    assert.match(report, /raw 스케일 비어 있음/);
+    // §6 must now contain light-mode literal rows. Slice the §6 section so the
+    // assertion can't match a stray "light" elsewhere in the report.
+    const section6 = report.slice(report.indexOf("## 6."), report.indexOf("## 7."));
+    assert.match(section6, /\| light \|/, "§6 missing light-mode literal rows (regression: resolveRole dropped light literals)");
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("flags dangling var() refs when raw scales are partial/empty (mockup DC)", () => {
+  // On a mockup DC the scales aren't extracted, so var() refs into them point
+  // at undefined tokens and render as 'unset'. The converter must surface this
+  // loudly — in stdout (default run), §1 (precise token list), and the
+  // manifest — so a faithful-but-broken scaffold can't pass silently
+  // (gotcha #8, applied to token generation).
+  //
+  // Note: ③ auto-skips DC-sourced specs on a mockup, so component refs like
+  // --radius-control are no longer emitted (and no longer dangle). The Shell
+  // primitives that remain still reference --space-5/--space-7, so those dangle.
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out], {
+      encoding: "utf8",
+    });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    // default run prints a SCAFFOLD warning to stdout
+    assert.match(res.stdout, /SCAFFOLD.*dangling var\(\) ref/);
+    const report = fs.readFileSync(path.join(out, "_report.md"), "utf8");
+    // §1 lists the precise dangling tokens (Shell primitive spacing refs)
+    assert.match(report, /단절.*var\(\).*참조/);
+    assert.match(report, /`--space-7`/);
+    // manifest records them for CI consumers
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "_manifest.json"), "utf8"));
+    assert.ok(Array.isArray(manifest.dangling_refs), "manifest missing dangling_refs");
+    assert.ok(manifest.dangling_refs.includes("--space-7"), "manifest dangling_refs missing --space-7");
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("--strict fails on dangling var() refs", () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out, "--strict"], {
+      encoding: "utf8",
+    });
+    assert.notEqual(res.status, 0, "--strict should exit non-zero on dangling refs");
+    assert.match(res.stderr, /dangling var\(\) refs/);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("③ auto-skips DC-sourced specs on a mockup; --full-spec restores them", () => {
+  // DC-sourced layout/component specs are Design Tokens constants, not values
+  // read from the input. On a mockup (no token scales) they'd impose one doc's
+  // structural decisions on another AND dangle. The converter auto-skips them
+  // (Shell primitives stay), and --full-spec forces them back.
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    // default: mockup → DC-sourced specs skipped
+    let res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out], { encoding: "utf8" });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    assert.match(res.stdout, /DC-sourced.*skipped/);
+    const component = fs.readFileSync(path.join(out, "component.css"), "utf8");
+    const layout = fs.readFileSync(path.join(out, "layout.css"), "utf8");
+    // component.css has no DC-sourced declarations (empty/skip comment)
+    assert.doesNotMatch(component, /--button-radius/, "component.css should have no DC-sourced specs on mockup");
+    // layout.css keeps Shell primitives, drops DC-sourced (e.g. --header-height)
+    assert.match(layout, /--sidebar-width/, "Shell primitive should remain");
+    assert.doesNotMatch(layout, /--header-height/, "DC-sourced --header-height should be skipped on mockup");
+    let manifest = JSON.parse(fs.readFileSync(path.join(out, "_manifest.json"), "utf8"));
+    assert.equal(manifest.dc_spec_skipped, true, "manifest dc_spec_skipped should be true on mockup");
+
+    // --full-spec forces them back
+    res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out, "--full-spec"], { encoding: "utf8" });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    const componentFull = fs.readFileSync(path.join(out, "component.css"), "utf8");
+    assert.match(componentFull, /--button-radius/, "--full-spec should restore DC-sourced component specs");
+    manifest = JSON.parse(fs.readFileSync(path.join(out, "_manifest.json"), "utf8"));
+    assert.equal(manifest.dc_spec_skipped, false, "manifest dc_spec_skipped should be false under --full-spec");
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("④ reports missing Typography deps (text on mockup; leading/weight always)", () => {
+  // Typography.tsx (a Step-4 skill asset) needs --text-*/--leading-*/--weight-*.
+  // The converter never emits leading/weight (DC has no such scale), and text
+  // is absent on a mockup. The gap must be warned — not silently shipped and
+  // not auto-filled with defaults (faithful-over-defaults).
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out], { encoding: "utf8" });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    assert.match(res.stdout, /Typography deps missing/);
+    const report = fs.readFileSync(path.join(out, "_report.md"), "utf8");
+    assert.match(report, /Typography 의존 토큰 누락/);
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "_manifest.json"), "utf8"));
+    const missing = manifest.typography_deps_missing;
+    assert.ok(missing && missing.text && missing.text.length, "text deps should be missing on mockup");
+    assert.ok(missing.leading && missing.leading.length, "leading deps always missing (never DC-sourced)");
+    assert.ok(missing.weight && missing.weight.length, "weight deps always missing (never DC-sourced)");
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }

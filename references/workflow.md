@@ -58,7 +58,9 @@ Pick the branch by what the design source is:
   (`--color-danger` is omitted — add a `--red-*` scale) and a WCAG check on
   `--color-muted-foreground` (the `_report.md` contrast gate flags it; see
   `references/dc-to-tokens.md` → 접근성). Run `--strict` to fail CI on dark-pair
-  gaps, empty raw coverage, or WCAG-AA text failures.
+  gaps, empty raw coverage, dangling `var()` refs (layout/component pointing at
+  absent raw scales — fires on mockup or partial-scale inputs), or WCAG-AA text
+  failures.
 - **(C) Otherwise (Figma / JSON / no source)** → copy the default four files
   in `assets/tokens/` to `src/styles/tokens/`:
   - **raw.css** — primitives only (OKLCH color scales, `--space-1..8`,

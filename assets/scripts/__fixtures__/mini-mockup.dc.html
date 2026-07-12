@@ -1,0 +1,76 @@
+<!--
+  mini-mockup.dc.html — a mockup-style DC fixture for the converter's
+  degradation path. It carries the two [data-theme] CSS blocks the converter
+  reads for semantic colors, but its renderVals() returns UI data (a route
+  list), NOT token arrays — no slateRamp / spacing / radii / typeScale /
+  brandColors. This is the "raw scales empty" shape documented in
+  references/dc-to-tokens.md → Troubleshooting, the same shape as a real
+  app-prototype .dc.html (e.g. one whose renderVals() returns routes, hero,
+  FAQ data, …).
+
+  Pairs with the "§6 reports light-mode literals" test in extract-dc.test.mjs:
+  with the slate ramp absent, every light-mode color role resolves to an
+  OKLCH literal, and §6 must list those light rows — before the resolveRole
+  fix they were silently dropped (only dark-mode literals were tracked).
+
+  Component demos / prose are stripped. Every color is a real sRGB hex/rgba.
+-->
+<!doctype html>
+<html lang="en">
+<helmet>
+  <style>
+    [data-theme="light"] {
+      --bg: #f6f7f9;
+      --text: #545b68;
+      --surface: #ffffff;
+      --surface2: #e2e5ea;
+      --strong: #1f242e;
+      --muted: #8b93a1;
+      --border: #e2e5ea;
+      --primary: #4f46e5;
+      --secondary: #4338ca;
+      --accent: #14b8a6;
+      --onprimary: #ffffff;
+      --heading: #1f242e;
+      --primarySoft: rgba(79, 70, 229, 0.12);
+      --accentSoft: rgba(20, 184, 166, 0.12);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    [data-theme="dark"] {
+      --bg: #0f1318;
+      --text: #b6bdc9;
+      --surface: #1f242e;
+      --surface2: #3a4150;
+      --strong: #f6f7f9;
+      --muted: #8b93a1;
+      --border: #3a4150;
+      --primary: #6366f1;
+      --secondary: #4f46e5;
+      --accent: #2dd4bf;
+      --onprimary: #ffffff;
+      --heading: #f6f7f9;
+      --primarySoft: rgba(99, 102, 241, 0.16);
+      --accentSoft: rgba(45, 212, 191, 0.16);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+  </style>
+</helmet>
+
+<body>
+  <!-- component demos omitted on purpose — the converter ignores them -->
+
+  <script data-dc-script>
+    class Component extends DCLogic {
+      renderVals() {
+        // UI data, not token arrays — no slateRamp / spacing / radii / typeScale.
+        return {
+          routes: [
+            { id: "home", label: "Home" },
+            { id: "about", label: "About" },
+          ],
+        };
+      }
+    }
+  </script>
+</body>
+</html>

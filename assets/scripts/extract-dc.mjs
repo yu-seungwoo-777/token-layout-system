@@ -22,18 +22,22 @@
 // Zero dependencies — Node 20+ builtins only (fs, path, vm, crypto).
 //
 // Verification performed by this script (see _report.md): OKLCH math
-// self-check (hex→OKLCH→hex round-trip), var() color-ref integrity (by
-// construction — resolver refs only target scales that were actually
-// extracted), dark pair completeness, WCAG contrast on foreground/background
-// pairs, token coverage. NOTE: the DC_SPEC layout/component var() refs
-// (var(--space-N)/var(--radius-*)) are NOT validated — if the input lacks
-// those scales the refs dangle; _report.md §1 flags this when raw is empty. What it does NOT do: run a real CSS parser, a Next build, or a
-// browser render — see references/dc-to-tokens.md → "Verification beyond
-// this script" for the recommended gates (lightningcss, next build,
-// Playwright getComputedStyle).
+// self-check (hex→OKLCH→hex round-trip), var() ref integrity (every var()
+// in the emitted CSS must be defined somewhere in it — catches DC_SPEC
+// layout/component refs into absent scales, whether the input is a full
+// mockup or just missing one step), Typography-dependency coverage (the
+// Step-4 Typography asset needs --text-*/--leading-*/--weight-*; the
+// converter never emits leading/weight, so it warns rather than inject
+// defaults), dark pair completeness, WCAG contrast on foreground/background
+// pairs, raw-scale coverage. DC_SPEC "dc"-sourced specs are auto-skipped on
+// a mockup (override with --no-spec / --full-spec). What it does NOT do: run
+// a real CSS parser, a Next build, or a browser render — see
+// references/dc-to-tokens.md → "Verification beyond this script" for the
+// recommended gates (lightningcss, next build, Playwright getComputedStyle).
 //
 // Usage:
-//   node extract-dc.mjs <input.dc.html> [--out <dir>] [--no-manifest] [--strict]
+//   node extract-dc.mjs <input.dc.html> [--out <dir>] [--no-manifest]
+//                       [--no-spec | --full-spec] [--strict]
 //
 // Trust assumption: the input is a Claude Design artifact you control.
 // `vm` is NOT a hardened security sandbox (per Node docs); it is used
@@ -65,17 +69,25 @@ function parseArgs(argv) {
     out,
     manifest: !args.includes("--no-manifest"),
     strict: args.includes("--strict"),
+    noSpec: args.includes("--no-spec"),
+    fullSpec: args.includes("--full-spec"),
   };
 }
 
 const HELP = `extract-dc.mjs — DC .dc.html → 4-layer token CSS
 
   node extract-dc.mjs <input.dc.html> [--out <dir>] [--no-manifest] [--strict]
+                                    [--no-spec | --full-spec]
 
   --out <dir>     output directory (default: <input-dir>/tokens)
   --no-manifest   skip writing _manifest.json and _report.md
-  --strict        exit non-zero if dark pairs incomplete, WCAG fails, or raw
-                  scale coverage is empty (for CI)`;
+  --strict        exit non-zero if dark pairs incomplete, WCAG fails, raw
+                  scale coverage is empty, or var() refs dangle (for CI)
+  --no-spec       emit only Shell primitives; skip the Design Tokens-sourced
+                  layout/component specs (their values aren't read from the
+                  input). Use when your DC isn't the Design Tokens reference.
+  --full-spec     force the Design Tokens-sourced specs even on a mockup /
+                  non-token input (overrides the auto-skip).`;
 
 // ===================== color: hex/rgba → OKLCH ===================== //
 // sRGB → linear-light → OKLCH (Björn Ottosson's space, the format shadcn's
@@ -417,42 +429,48 @@ const BRAND_TOKEN_OF = {
   "--accent": "--brand-accent",
 };
 
-// DC layout & component specs DC states in prose but does NOT expose via
-// renderVals arrays. Documented constant with DC-section citation per value.
-// layout: Shell primitive tokens are appended (not DC-sourced) so DC output
-// is a drop-in for the skill's Shell — see references/dc-to-tokens.md.
+// DC layout & component specs. Each entry is [name, value, citation, source]:
+//   source "shell" — skill plumbing DC does not provide (Shell/grid.css reads
+//     these). Always emitted so DC output is a Shell drop-in. Not a
+//     faithfulness claim — these are the skill's own structural needs.
+//   source "dc"   — sourced from the `Design Tokens.dc.html` reference and
+//     applied to every input. These are NOT read from the input DC (it states
+//     them in prose, not arrays), so they are only faithful when the input IS
+//     Design Tokens. On a mockup / non-token input they impose one doc's
+//     structural decisions on another; emitLayout/emitComponent skip the "dc"
+//     group there (auto on mockup, or via --no-spec; --full-spec forces them).
 const DC_SPEC = {
   layout: [
-    ["--container-max", "70rem", "DC §12: column max-width 70rem (1120px)"],
-    ["--container-prose", "46rem", "DC §4/§12: prose measure"],
-    ["--form-width", "40rem", "DC §12: form 640px"],
-    ["--header-height", "4rem", "DC Design Tokens top bar height:4rem (64px)"],
-    ["--section-pad-y", "var(--space-7)", "DC §6 spacing step 7 (44px)"],
-    ["--section-pad-y-mobile", "1.75rem", "DC §6: mobile 28px (between scale steps)"],
-    ["--section-pad-x", "var(--space-5)", "DC §6 spacing step 5 (24px)"],
-    ["--gutter", "1rem", "DC §12: gutter"],
-    ["--column-gap", "var(--space-6)", "DC §6 spacing step 6 (34px)"],
-    ["--footer-height", "var(--space-7)", "Shell primitive — DC has no footer spec"],
-    ["--sidebar-width", "16rem", "Shell primitive — DC defines no sidebar"],
-    ["--sidebar-width-collapsed", "4rem", "Shell primitive"],
-    ["--grid-3col-ratio", "1fr 3fr 1fr", "Shell primitive — 3-col track ratio"],
-    ["--layout-gap", "var(--space-5)", "Shell primitive — consumed by Shell mainGrid"],
-    ["--container-padding-x", "var(--space-5)", "Shell primitive — consumed by Shell mainGrid"],
+    ["--container-max", "70rem", "DC §12: column max-width 70rem (1120px)", "dc"],
+    ["--container-prose", "46rem", "DC §4/§12: prose measure", "dc"],
+    ["--form-width", "40rem", "DC §12: form 640px", "dc"],
+    ["--header-height", "4rem", "DC Design Tokens top bar height:4rem (64px)", "dc"],
+    ["--section-pad-y", "var(--space-7)", "DC §6 spacing step 7 (44px)", "dc"],
+    ["--section-pad-y-mobile", "1.75rem", "DC §6: mobile 28px (between scale steps)", "dc"],
+    ["--section-pad-x", "var(--space-5)", "DC §6 spacing step 5 (24px)", "dc"],
+    ["--gutter", "1rem", "DC §12: gutter", "dc"],
+    ["--column-gap", "var(--space-6)", "DC §6 spacing step 6 (34px)", "dc"],
+    ["--footer-height", "var(--space-7)", "Shell primitive — DC has no footer spec", "shell"],
+    ["--sidebar-width", "16rem", "Shell primitive — DC defines no sidebar", "shell"],
+    ["--sidebar-width-collapsed", "4rem", "Shell primitive", "shell"],
+    ["--grid-3col-ratio", "1fr 3fr 1fr", "Shell primitive — 3-col track ratio", "shell"],
+    ["--layout-gap", "var(--space-5)", "Shell primitive — consumed by Shell mainGrid", "shell"],
+    ["--container-padding-x", "var(--space-5)", "Shell primitive — consumed by Shell mainGrid", "shell"],
   ],
   component: [
-    ["--button-radius", "var(--radius-control)", "DC §5/§8: all controls 10px"],
-    ["--button-min-height", "var(--space-7)", "DC §8/§14: 44px touch target"],
-    ["--button-padding-x", "1.375rem", "DC §8: 22px (between space-4 18 / space-5 24)"],
-    ["--button-font-weight", "700", "DC §8: primary 700"],
-    ["--card-radius", "var(--radius-card)", "DC §5/§11: cards 12px"],
-    ["--card-padding", "var(--space-4)", "DC §11: 18px = space-4"],
-    ["--card-border-width", "1px", "DC §11: 1px border"],
-    ["--badge-radius", "var(--radius-pill)", "DC §5/§10: badges/chips pill"],
-    ["--input-radius", "var(--radius-control)", "DC §5/§8: controls 10px"],
-    ["--input-min-height", "var(--space-7)", "DC §14: 44px touch target"],
-    ["--focus-ring-width", "2px", "DC §14: outline 2px"],
-    ["--focus-ring-offset", "2px", "DC §14: offset 2px"],
-    ["--touch-target", "var(--space-7)", "DC §14: min 44×44"],
+    ["--button-radius", "var(--radius-control)", "DC §5/§8: all controls 10px", "dc"],
+    ["--button-min-height", "var(--space-7)", "DC §8/§14: 44px touch target", "dc"],
+    ["--button-padding-x", "1.375rem", "DC §8: 22px (between space-4 18 / space-5 24)", "dc"],
+    ["--button-font-weight", "700", "DC §8: primary 700", "dc"],
+    ["--card-radius", "var(--radius-card)", "DC §5/§11: cards 12px", "dc"],
+    ["--card-padding", "var(--space-4)", "DC §11: 18px = space-4", "dc"],
+    ["--card-border-width", "1px", "DC §11: 1px border", "dc"],
+    ["--badge-radius", "var(--radius-pill)", "DC §5/§10: badges/chips pill", "dc"],
+    ["--input-radius", "var(--radius-control)", "DC §5/§8: controls 10px", "dc"],
+    ["--input-min-height", "var(--space-7)", "DC §14: 44px touch target", "dc"],
+    ["--focus-ring-width", "2px", "DC §14: outline 2px", "dc"],
+    ["--focus-ring-offset", "2px", "DC §14: offset 2px", "dc"],
+    ["--touch-target", "var(--space-7)", "DC §14: min 44×44", "dc"],
   ],
 };
 
@@ -488,7 +506,10 @@ function makeResolver({ slate, brandLight, brandDark }) {
 // Resolve one semantic role's value for one mode.
 function resolveRole(role, val, mode, resolver, rawSoft, literals) {
   if (role.kind === "shadow") {
-    if (mode === "dark") literals.push({ role: role.out, mode, reason: "box-shadow (not a color)" });
+    // box-shadow is a structural value, not a color — emitted verbatim in
+    // EITHER mode. Track both; the old `mode === "dark"` guard dropped the
+    // light-mode shadow row from §6.
+    literals.push({ role: role.out, mode, reason: "box-shadow (not a color)" });
     return val;
   }
   if (role.kind === "soft") {
@@ -500,8 +521,15 @@ function resolveRole(role, val, mode, resolver, rawSoft, literals) {
     literals.push({ role: role.out, mode, reason: "soft tint not in raw" });
     return toOklch(val);
   }
+  // "color" kind: resolver returns literal:true when the hex doesn't coincide
+  // with a materialized raw token (slate/brand/white/black). That happens in
+  // EITHER mode — dark neutrals off the slate ramp when the ramp is present,
+  // OR any role when the ramp is empty (mockup DC files whose renderVals()
+  // returns UI data). Track both modes; the old `mode === "dark"` guard
+  // silently dropped light-mode literals, so §6 under-reported whenever slate
+  // coverage was empty.
   const { ref, literal } = resolver(val);
-  if (literal && mode === "dark") literals.push({ role: role.out, mode, reason: "dark neutral off slate ramp" });
+  if (literal) literals.push({ role: role.out, mode, reason: "off materialized raw scale (slate/brand/white/black)" });
   return ref;
 }
 
@@ -565,11 +593,91 @@ function emitSemantic({ themes, resolver, rawSoft, report }) {
   );
 }
 
-function emitLayout() {
-  return declBlock(":root", DC_SPEC.layout.map(([n, v, why]) => ({ name: n, value: v, comment: why })));
+// `includeDcSpec` false → emit only the "shell"-sourced entries (skill
+// plumbing). The "dc"-sourced entries (Design Tokens constants) are skipped
+// on mockup / non-token inputs and with --no-spec, because imposing one doc's
+// structural decisions on another is a faithfulness violation, and their
+// var(--space-N)/var(--radius-*) refs would dangle anyway. --full-spec forces
+// them back on.
+function emitLayout(includeDcSpec) {
+  const entries = DC_SPEC.layout
+    .filter(([, , , src]) => src === "shell" || includeDcSpec)
+    .map(([n, v, why]) => ({ name: n, value: v, comment: why }));
+  return declBlock(":root", entries);
 }
-function emitComponent() {
-  return declBlock(":root", DC_SPEC.component.map(([n, v, why]) => ({ name: n, value: v, comment: why })));
+function emitComponent(includeDcSpec) {
+  const entries = DC_SPEC.component
+    .filter(([, , , src]) => src === "shell" || includeDcSpec)
+    .map(([n, v, why]) => ({ name: n, value: v, comment: why }));
+  // component.css has no "shell" entries — when DC-sourced specs are skipped
+  // the file would be empty. Emit an explanatory comment instead of an empty
+  // :root block, so the gap is visible and the @import in globals.css still
+  // resolves.
+  if (!entries.length) {
+    return "/* DC-sourced component specs skipped (mockup input or --no-spec).\n   No Shell primitives exist for component dimensions, so this file is empty.\n   Copy assets/tokens/component.css for the skill default component tokens,\n   or re-run with --full-spec to emit the Design Tokens-sourced values. */";
+  }
+  return declBlock(":root", entries);
+}
+
+// ===================== dangling-ref check ========================= //
+// Self-consistency check on the converter's OWN output: every var(--token)
+// referenced across the four emitted files must be defined in one of them.
+// The footgun is DC_SPEC — it emits var(--space-N)/var(--radius-*) refs that
+// only resolve if the input DC actually exposed those scales. A mockup DC
+// (renderVals returns UI data, not scales) OR a partial token set leaves
+// those refs pointing at undefined tokens, which render as 'unset'. The old
+// §1 warning only fired when ALL scales were empty; this catches the partial
+// case too (e.g. spacing present but missing the exact step DC_SPEC needs).
+// Scope is deliberately the converter's own files — it can't know which
+// tokens the consuming project fills in separately, so it only flags refs
+// that nothing in the emitted output defines.
+function findDanglingRefs(fileMap) {
+  const strip = (body) => body.replace(/\/\*[\s\S]*?\*\//g, "");
+  const defined = new Set();
+  for (const body of Object.values(fileMap)) {
+    for (const m of strip(body).matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(m[1]);
+  }
+  const dangling = [];
+  const seen = new Set();
+  for (const [file, body] of Object.entries(fileMap)) {
+    for (const m of strip(body).matchAll(/var\(\s*(--[a-z0-9-]+)/g)) {
+      const name = m[1];
+      if (defined.has(name)) continue;
+      const key = `${file}:${name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dangling.push({ file, name });
+    }
+  }
+  return dangling;
+}
+
+// ===================== typography-dep check ======================= //
+// Typography.tsx (a skill asset copied at Step 4, NOT emitted by this
+// converter) references a fixed set of raw tokens. This check is the
+// cross-asset analogue of findDanglingRefs: the converter's own files don't
+// reference --leading-*/--weight-*, so the dangling check is silent on them,
+// but Typography does, and the converter never emits leading/weight (DC's
+// typeScale carries per-entry weights in prose only, no scale). Result: on a
+// mockup the text scale is missing too. We WARN (never auto-inject defaults —
+// that would violate faithful-over-defaults); the user copies the missing
+// scale from assets/tokens/raw.css or adds it to the DC source.
+const TYPOGRAPHY_DEPS = {
+  text: ["--text-2xl", "--text-xl", "--text-lg", "--text-base", "--text-sm"],
+  leading: ["--leading-tight", "--leading-normal", "--leading-relaxed"],
+  weight: ["--weight-bold", "--weight-medium", "--weight-normal"],
+};
+function findMissingTypographyDeps(fileMap) {
+  const defined = new Set();
+  for (const body of Object.values(fileMap)) {
+    for (const m of body.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(m[1]);
+  }
+  const missing = {};
+  for (const [group, names] of Object.entries(TYPOGRAPHY_DEPS)) {
+    const m = names.filter((n) => !defined.has(n));
+    if (m.length) missing[group] = m;
+  }
+  return missing;
 }
 
 // ===================== manifest + report ========================== //
@@ -600,6 +708,9 @@ function emitManifest({ sourceName, sha, themes, slate, spacing, radii, type, br
     omitted_roles: OMITTED_ROLES,
     dark_pairs_complete: report.darkMissing.length === 0,
     dark_missing: report.darkMissing,
+    dangling_refs: [...new Set((report.dangling || []).map((d) => d.name))],
+    dc_spec_skipped: !!report.dcSpecSkipped,
+    typography_deps_missing: report.typographyDepsMissing || {},
     counts: {
       slate: slate.length, brand: Object.keys(brandLight).length, spacing: spacing.length,
       radii: radii.length, type: type.length, semantic_roles: SEMANTIC_ROLES.length,
@@ -641,10 +752,25 @@ function emitReport({ sourceName, sha, themes, slate, spacing, radii, type, bran
   const darkOk = report.darkMissing.length === 0;
   L.push(``);
   L.push(`- **dark 쌍 완전성**: ${darkOk ? "✅" : "❌ 누락 " + report.darkMissing.join(", ")}`);
-  L.push(`- ℹ️ **구조/컴포넌트 값(DC_SPEC)은 \`Design Tokens.dc.html\` 기준 상수** — header-height·button radius·focus ring 등을 이 파일에서 발췌해 모든 입력에 적용. 입력 DC가 다르면 값이 다를 수 있으니 layout.css/component.css를 재확인할 것.`);
+  if (report.dcSpecSkipped) {
+    L.push(`- ℹ️ **DC-sourced 구조/컴포넌트 스펙 제외** — 입력이 토큰-참조 DC가 아니므로(또는 \`--no-spec\`) \`Design Tokens\` 기준값을 끼워넣지 않음. layout.css는 Shell primitive만, component.css는 비어 있음. 컴포넌트 토큰이 필요하면 기본 \`assets/tokens/component.css\`를 복사하거나 \`--full-spec\`으로 강제 주입.`);
+  } else {
+    L.push(`- ℹ️ **구조/컴포넌트 값(DC_SPEC)은 \`Design Tokens.dc.html\` 기준 상수** — header-height·button radius·focus ring 등을 이 파일에서 발췌해 적용. 입력 DC가 다르면 값이 다를 수 있으니 layout.css/component.css를 재확인하거나 \`--no-spec\`으로 제외.`);
+  }
   const lowCoverage = slate.length === 0 && spacing.length === 0 && radii.length === 0 && type.length === 0;
   if (lowCoverage) L.push(`- ⚠️ **raw 스케일 비어 있음** — renderVals에서 slate/spacing/radii/type를 얻지 못함. semantic.css는 정상이나 raw 계층이 빈 상태로 설치될 수 있음.`);
-  if (lowCoverage) L.push(`- ⚠️ **layout.css / component.css var() 참조 단절** — 이 파일들의 \`var(--space-N)\`·\`var(--radius-*)\` 참조가 raw.css에 정의되지 않아 깨짐. 구조값을 별도 채우거나 해당 DC 소스에 scale 배열을 추가할 것.`);
+  const dangling = report.dangling || [];
+  if (dangling.length) {
+    const danglingTokens = [...new Set(dangling.map((d) => d.name))];
+    L.push(`- ⚠️ **${danglingTokens.length}개 단절 \`var()\` 참조** — layout.css/component.css가 raw.css에 정의되지 않은 토큰을 참조해 렌더 시 \`unset\`으로 처리됨: ${danglingTokens.map((t) => `\`${t}\``).join(", ")}. 해결: 기본 \`assets/tokens/raw.css\`에서 누락 스케일(\`--space-*\`·\`--radius-*\`·\`--text-*\`)을 보충하거나, DC 소스에 scale 배열을 추가 후 재변환.`);
+  }
+  {
+    const typo = Object.entries(report.typographyDepsMissing || {});
+    if (typo.length) {
+      const detail = typo.map(([g, n]) => `${g}: ${n.map((t) => `\`${t}\``).join(", ")}`).join(" / ");
+      L.push(`- ⚠️ **Typography 의존 토큰 누락** — \`assets/components/typography.tsx\`(Step 4)가 참조하는 \`--text-*\`·\`--leading-*\`·\`--weight-*\` 중 변환기가 내보내지 않은 것: ${detail}. \`--leading-*\`·\`--weight-*\`는 DC가 스케일로 제공하지 않아 항상 누락됨(모든 입력에서). 해결: 기본 \`assets/tokens/raw.css\`에서 해당 스케일을 raw.css에 병합하거나 DC 소스에 추가.`);
+    }
+  }
   if (unparsable.size) L.push(`- ⚠️ **변환 불가 색** (원문 그대로 방출): ${[...unparsable].map((s) => `\`${s}\``).join(", ")}`);
   L.push(``);
 
@@ -810,12 +936,30 @@ function main() {
 
   const resolver = makeResolver({ slate, brandLight: rawBrandLight, brandDark });
   const report = { warning };
+  // ③ DC_SPEC handling: "dc"-sourced specs are Design Tokens constants, not
+  // values read from the input — only faithful when the input IS Design
+  // Tokens. Auto-skip them on a mockup (no token scales extracted), unless
+  // --full-spec forces them; --no-spec skips unconditionally. Shell primitives
+  // (skill plumbing) always emit.
+  const isMockup = slate.length === 0 && spacing.length === 0 && radii.length === 0 && type.length === 0;
+  const includeDcSpec = args.fullSpec || (!args.noSpec && !isMockup);
+  report.dcSpecSkipped = !includeDcSpec;
   const rawCss = emitRaw({ slate, spacing, radii, type, brandLight: rawBrandLight, softLight: rawSoft });
   const semanticCss = emitSemantic({ themes, resolver, rawSoft, report });
-  const layoutCss = emitLayout();
-  const componentCss = emitComponent();
+  const layoutCss = emitLayout(includeDcSpec);
+  const componentCss = emitComponent(includeDcSpec);
 
   const files = { "raw.css": rawCss, "semantic.css": semanticCss, "layout.css": layoutCss, "component.css": componentCss };
+  // Self-consistency: flag var() refs in the emitted CSS that no emitted file
+  // defines (mostly DC_SPEC refs into absent scales). Surfaced in §1, stdout,
+  // the manifest, and --strict — see findDanglingRefs.
+  const dangling = findDanglingRefs(files);
+  report.dangling = dangling;
+  // ④ Typography (a Step-4 skill asset, not emitted here) needs --text-*/--
+  // leading-*/--weight-*; the converter never emits leading/weight, and text
+  // is absent on a mockup. Warn only (never inject defaults).
+  const missingTypo = findMissingTypographyDeps(files);
+  report.typographyDepsMissing = missingTypo;
   for (const [name, body] of Object.entries(files)) {
     fs.writeFileSync(path.join(outDir, name), fileHeader(`${name} —`, sourceName, sha) + "\n" + body + "\n");
   }
@@ -834,11 +978,32 @@ function main() {
   out(`  semantic: ${SEMANTIC_ROLES.length} roles (${OMITTED_ROLES.length} omitted), dark pairs ${report.darkMissing.length === 0 ? "complete ✅" : "MISSING ❌ " + report.darkMissing}`);
   if (report.warning) out(`  ⚠ ${report.warning}`);
   if (unparsable.size) out(`  ⚠ unparsable colors emitted verbatim: ${[...unparsable].join(", ")}`);
+  if (dangling.length) {
+    const uniq = [...new Set(dangling.map((d) => d.name))];
+    out(`  ⚠ SCAFFOLD: ${dangling.length} dangling var() ref(s) [${uniq.length} unique] — layout/component reference tokens not defined in raw.css: ${uniq.join(", ")}`);
+    out(`    these render as 'unset' — fill the missing raw scales before Step 6`);
+  }
+  if (report.dcSpecSkipped) {
+    out(`  ℹ DC-sourced layout/component specs skipped (Shell primitives only) — input is not a token-reference DC (or --no-spec).`);
+    out(`    re-run with --full-spec to force the Design Tokens-sourced values`);
+  }
+  {
+    const typo = Object.entries(report.typographyDepsMissing || {});
+    if (typo.length) {
+      const parts = typo.map(([g, n]) => `${g} (${n.length})`);
+      out(`  ⚠ Typography deps missing [${parts.join(", ")}] — assets/components/typography.tsx (Step 4) needs --text-*/--leading-*/--weight-* the converter did not emit`);
+      out(`    copy the missing scale(s) from assets/tokens/raw.css into raw.css (leading/weight are never DC-sourced)`);
+    }
+  }
 
   if (args.strict) {
     if (report.darkMissing.length) strictFailures.push("dark pairs incomplete");
     if (slate.length === 0 && spacing.length === 0 && radii.length === 0 && type.length === 0)
       strictFailures.push("raw scale coverage empty");
+    if (dangling.length) {
+      const uniq = [...new Set(dangling.map((d) => d.name))];
+      strictFailures.push(`dangling var() refs: ${uniq.join(", ")}`);
+    }
     // WCAG fail check
     const roleToDc = Object.fromEntries(SEMANTIC_ROLES.map((r) => [r.out, r.dc]));
     for (const [fg, bg] of CONTRAST_PAIRS) {

@@ -42,15 +42,23 @@ as a cited `DC_SPEC` constant in the converter, not scraped from demo markup.
 
 ```
 node assets/scripts/extract-dc.mjs <input.dc.html> [--out <dir>] [--no-manifest]
+                                    [--no-spec | --full-spec] [--strict]
 ```
 
 - `--out <dir>` — default `<input-dir>/tokens/`.
 - `--no-manifest` — write only the 4 CSS files, skip `_manifest.json` and `_report.md`.
+- `--no-spec` — emit only Shell primitives; skip the Design Tokens-sourced
+  layout/component specs (their values aren't read from the input — see
+  `DC_SPEC` below). Use when your DC isn't the `Design Tokens` reference and
+  you don't want its structural decisions imposed.
+- `--full-spec` — force the Design Tokens-sourced specs even on a mockup /
+  non-token input (overrides the auto-skip described under `DC_SPEC`).
 
 Outputs:
 - `raw.css` · `semantic.css` · `layout.css` · `component.css`
-- `_manifest.json` — provenance + flat token index (machine-readable)
-- `_report.md` — verification: hex→OKLCH round-trip delta per color, dark-pair completeness, off-ramp literals, scale coverage (human-readable — **read it after every run**)
+- `_manifest.json` — provenance + flat token index (machine-readable; also
+  `dangling_refs`, `dc_spec_skipped`, `typography_deps_missing`)
+- `_report.md` — verification: hex→OKLCH round-trip delta per color, dark-pair completeness, off-ramp literals, dangling `var()` refs, Typography-dep gaps, scale coverage (human-readable — **read it after every run**)
 
 Typical Step 1 (branch B):
 
@@ -73,11 +81,19 @@ flow does (copy `assets/globals.css`).
    4rem/64px, button 44/22/10, focus 2px/2px, touch target 44px). Hardcoded in
    the script with a DC-section citation per value, rather than scraped from
    fragile inline styles. **These constants are sourced from the
-   `Design Tokens.dc.html` reference and applied to every input** — if your
-   DC source specifies a different header height, button radius, or focus ring,
-   the converter will *not* pick it up; review `layout.css`/`component.css`
-   after conversion. `_report.md` §1 notes this. (The scales — slate, spacing,
-   radii, type — are scraped per-file, so they do track the input.)
+   `Design Tokens.dc.html` reference, NOT read from the input** — so they are
+   only faithful when the input *is* that reference. Two consequences the
+   converter handles: (a) each entry is tagged `shell` (skill plumbing the
+   Shell/grid needs — sidebar width, 3-col ratio, …; always emitted) or `dc`
+   (the Design Tokens-sourced values above); (b) on a mockup / non-token input
+   (no scales extracted), the `dc` group is **auto-skipped** so one doc's
+   structural decisions aren't imposed on another (their `var(--space-N)` refs
+   would dangle anyway). Override with `--no-spec` (skip always) or
+   `--full-spec` (force even on a mockup). If your real source specifies a
+   different header height, button radius, or focus ring, edit
+   `layout.css`/`component.css` after conversion. `_report.md` §1 notes
+   whether the `dc` group was applied or skipped. (The scales — slate,
+   spacing, radii, type — are scraped per-file, so they do track the input.)
 
 If `renderVals()` evaluation fails (or the arrays are absent — e.g. a mockup
 `.dc.html` whose `renderVals()` returns UI data, not token arrays), the
@@ -244,10 +260,13 @@ extraction in a separate container.
 ## Verification beyond this script
 
 The converter does **static** verification only — what it can prove without a
-browser or build (OKLCH math self-check, `var()` reference integrity, dark-pair
-completeness, WCAG contrast, raw-scale coverage, Shell token coverage). It
-deliberately does **not** claim a browser-render proof. Before trusting DC
-output in a real app, run the gates the skill itself preaches (Step 6):
+browser or build: OKLCH math self-check, `var()` ref integrity (every `var()`
+in the emitted files is defined in one of them — catches `DC_SPEC` layout/
+component refs into absent scales, whether the input is a full mockup or just
+missing one step), dark-pair completeness, WCAG contrast, and raw-scale
+coverage. It deliberately does **not** claim a browser-render proof. Before
+trusting DC output in a real app, run the gates the skill itself preaches
+(Step 6):
 
 1. **CSS parse** — run the four files through `lightningcss`/`postcss` to catch
    malformed declarations or `@import`/`@theme` ordering the brace-count can't
@@ -260,9 +279,10 @@ output in a real app, run the gates the skill itself preaches (Step 6):
    round-trip specifically, it also lets you diff the **rendered** sRGB against
    the source hex — a real fidelity check, stronger than the math self-check.
 3. **`--strict` in CI** — `node extract-dc.mjs … --strict` exits non-zero on
-   incomplete dark pairs, empty raw-scale coverage, or any WCAG-AA text-pair
-   failure. Wire it into the design-source pipeline so a DC edit that breaks
-   dark parity or contrast fails before it ships.
+   incomplete dark pairs, empty raw-scale coverage, dangling `var()` refs
+   (layout/component pointing at raw tokens the input didn't expose), or any
+   WCAG-AA text-pair failure. Wire it into the design-source pipeline so a DC
+   edit that breaks dark parity or contrast fails before it ships.
 
 The round-trip table in `_report.md` §3 is a **math self-check** (same
 `toOklch` + inverse, confirms no sign/coefficient bug, lands within Δ ≤ 1/255
@@ -283,8 +303,10 @@ the conclusion happens to hold, but establishing it is gate 2's job.
 |---|---|
 | `renderVals eval failed` / `did not define class Component` | The converter runs the DC script expecting a class named **`Component`** to be a global — it appends `globalThis.__DC = Component` and instantiates that. If the DC file names its class differently or exports it another way, eval fails and the raw scales come up empty. Converter still emits `semantic.css` from the CSS blocks; rename/alias the class or extend the stub in `extract-dc.mjs`. |
 | `dark pairs MISSING` | A role's DC var exists in light but not dark. Add the dark value to the DC source and regenerate. |
-| `raw 스케일 비어 있음` + tokens look broken | The DC file is a mockup (its `renderVals()` returns UI data, not token arrays). `layout.css`/`component.css` still reference `var(--space-N)`/`var(--radius-*)` that are now undefined — fill those scales in `raw.css` or feed the converter a token-reference DC file instead. |
-| Structural specs wrong (header height, button radius, …) | `DC_SPEC` values are hardcoded from `Design Tokens.dc.html` and applied to all inputs. If your source differs, edit `layout.css`/`component.css` after conversion (or the `DC_SPEC` table for repeated use). |
+| `SCAFFOLD: N dangling var() ref(s)` on stdout, `dangling var() refs` in `--strict` / §1 | `layout.css`/`component.css` (from `DC_SPEC`) reference raw tokens the input didn't expose — listed by name (e.g. `--space-7`, `--radius-control`); they render as `unset`. Fires on a full mockup *or* a partial input (e.g. spacing present but missing the step `DC_SPEC` needs). Fix: copy the missing `--space-*`/`--radius-*`/`--text-*` scales from `assets/tokens/raw.css` into the generated `raw.css`, or add the scale arrays to the DC source and regenerate. |
+| All scales empty (`raw: 0 slate, … 0 type`) | The DC file is a mockup — its `renderVals()` returns UI data (routes, hero, FAQ…), not token arrays. `semantic.css` still generates from the theme blocks (dark pairs complete); only the raw scales are absent, which surfaces as dangling refs (row above). Feed a token-reference DC, or fill the scales by hand. |
+| Structural specs wrong (header height, button radius, …) | `DC_SPEC` `dc`-sourced values are hardcoded from `Design Tokens.dc.html`, not read from your input. Auto-skipped on a mockup; on a real token-reference DC, edit `layout.css`/`component.css` after conversion, or re-run with `--no-spec` to drop them and copy `assets/tokens/component.css` for skill defaults. |
+| `Typography deps missing […]` on stdout / §1 | `assets/components/typography.tsx` (Step 4) needs `--text-*`/`--leading-*`/`--weight-*`. The converter emits `--text-*` from DC's typeScale (absent on a mockup), but **never** emits `--leading-*`/`--weight-*` (DC has no such scale) — so those two are flagged on every run. Fix: copy the missing scale(s) from `assets/tokens/raw.css` into the generated `raw.css`. Not a `--strict` failure (the gap is inherent, not a malformed input). |
 | Color looks slightly off | Check `_report.md` §2 — any Δ > 1 is flagged. Δ ≤ 1 is visually identical. |
 | `text-3xl` doesn't resolve | Type-scale gotcha above — add `--text-3xl` to `raw.css` or use `text-h1`. |
 | `bg-destructive` shows indigo | `--color-danger` is a primary placeholder — replace with a real red. |
