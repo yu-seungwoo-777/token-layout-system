@@ -42,6 +42,43 @@ another. Internalize these — don't memorize a script.
    src/styles/tokens` (dangling refs, Typography deps, dark-pair completeness,
    WCAG). Format-independent: same checks whatever produced the tokens.
 
+## When extraction gets hard: two failure modes
+
+Extraction from a real source will hit difficulty. There are **two distinct
+causes** — handle each differently. The rule in both: **surface it, don't
+silently resolve it.** A defensible choice buried in the output is still a
+silent design decision. This operationalizes principle 6 (faithful-over-
+defaults) for the cases where you can't simply preserve.
+
+**1. Insufficient content — the source lacks what you need.** A required token
+has nothing to map *from*: no error color, no dark mode, no `--leading-relaxed`,
+no border token at all.
+- Flag the gap in the output + report.
+- If there is **one principled fill**, apply it *and* flag it: Shell primitives
+  (skill plumbing), an error color from a standard `--red-*` scale, a missing
+  leading/weight step aliased to the nearest source value.
+- If it's a **conscious product decision**, stop and ask — *"No dark mode in the
+  source — fabricate one, or is single-theme intentional?"* / *"No error color —
+  what should destructive look like?"* Don't invent a design choice.
+- `verify-tokens.mjs` catches the gaps that slip through (missing Typography
+  deps, dangling refs, absent `.dark`).
+
+**2. Intent ambiguity — the source has content but it's unclear how to map it.**
+Multiple candidates map to one role, the source contradicts itself, or the
+choice changes the look: "pills for buttons" *and* "radius-md 12px for buttons";
+card border 0 vs 1px; border color drawn from a palette that defines no border
+token; faithful low-contrast muted text vs an a11y remap.
+- **Stop and ask.** Present the concrete interpretations as options — *"border →
+  ink-400 (warm neutral) / orange-100 (tint) / a new derived neutral — which?"*
+  — let the designer decide, regenerate on their choice.
+- This can't be auto-detected from output alone (verification sees the result,
+  not the source's ambiguity), so it must be handled during extraction by
+  following this protocol.
+
+Quick sort: **is the value absent from the source? → #1 (insufficient content).
+Is it present but won't pick one mapping? → #2 (intent ambiguity).** The action
+differs — fill-and-flag (or ask) vs always-ask.
+
 ## The `.dc.html` reference adapter
 
 `extract-dc.mjs` is the worked example for the `.dc.html` format. Read it as an
