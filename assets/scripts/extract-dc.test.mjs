@@ -271,3 +271,17 @@ test("④ reports missing Typography deps (text on mockup; leading/weight always
     fs.rmSync(out, { recursive: true, force: true });
   }
 });
+
+test("rejects a directory input with a clean message (not an EISDIR crash)", () => {
+  // Passing a directory (e.g. a Claude Design SPA bundle) used to crash with an
+  // uncaught EISDIR. It must now exit 1 with an actionable message.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, dir, "--out", dir], { encoding: "utf8" });
+    assert.notEqual(res.status, 0, "converter should exit non-zero on a directory input");
+    assert.match(res.stderr, /input is a directory, not a file/);
+    assert.doesNotMatch(res.stderr, /EISDIR/, "should not leak the raw EISDIR crash");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
