@@ -897,6 +897,16 @@ function main() {
     process.stderr.write(`✗ input not found: ${inputFile}\n`);
     process.exit(1);
   }
+  if (fs.statSync(inputFile).isDirectory()) {
+    process.stderr.write(
+      `✗ input is a directory, not a file: ${inputFile}\n` +
+        `  extract-dc.mjs converts a single .dc.html file. A Claude Design SPA\n` +
+        `  bundle (tokens/*.css + _ds_manifest.json) isn't one — apply the mapping\n` +
+        `  principles in references/dc-to-tokens.md by hand, then verify with\n` +
+        `  verify-tokens.mjs.\n`
+    );
+    process.exit(1);
+  }
   const outDir = path.resolve(args.out || path.join(path.dirname(inputFile), "tokens"));
   fs.mkdirSync(outDir, { recursive: true });
 
