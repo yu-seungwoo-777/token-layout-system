@@ -87,7 +87,7 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 - `SKILL.md` — the workflow Claude Code actually loads (English only — this README has a Korean translation at `README.ko.md`, but `SKILL.md` itself doesn't, since translating it doesn't change what Claude Code loads).
 - `assets/` — starter token CSS, `Shell`/`Header`/`Footer`/`Sidebar`, `globals.css` wiring, `Typography`, Playwright config + smoke spec
 - `assets/scripts/extract-dc.mjs` — **reference adapter** for the `.dc.html` format → 4-layer tokens (Step 1, branch B), with `__fixtures__/mini.dc.html` + `extract-dc.test.mjs` contract tests (`node --test assets/scripts/extract-dc.test.mjs`). One source format; adapt its principles for others.
-- `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG. `verify-tokens.test.mjs` contract tests (`node --test assets/scripts/verify-tokens.test.mjs`).
+- `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG (best-effort: hex/rgb only). `verify-tokens.test.mjs` contract tests (`node --test assets/scripts/verify-tokens.test.mjs`).
 - `references/workflow.md` — the seven build steps in detail (read per-step as you enter each one)
 - `references/dc-to-tokens.md` — DC `.dc.html` extraction in detail: mapping table, wiring, WCAG/trust notes (read for Step 1 branch B)
 - `references/shadcn-retrofit.md` — full before/after class table for retrofitting shadcn output onto the token layer

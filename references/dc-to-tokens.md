@@ -360,10 +360,14 @@ in a real app, run the gates the skill itself preaches (Step 6):
    smoke that reads `getComputedStyle` for each role in light and dark. This is
    the only thing that actually proves `.dark` flips colors, `@theme inline`
    resolves, and no token the Shell/Typography needs is missing.
-3. **`--strict` in CI** — `node verify-tokens.mjs … --strict` (any source) or
-   `node extract-dc.mjs … --strict` (`.dc.html`) exits non-zero on dangling
-   `var()` refs or WCAG-AA failures. Wire it in so a token edit that breaks
-   structure or contrast fails before it ships.
+3. **`--strict` in CI** — `node verify-tokens.mjs … --strict` (any source)
+   exits non-zero on dangling `var()` refs or WCAG-AA failures;
+   `node extract-dc.mjs … --strict` (`.dc.html`) *additionally* fails on
+   incomplete dark pairs or empty raw-scale coverage. Wire either in so a token
+   edit that breaks structure or contrast fails before it ships. (Note:
+   `verify-tokens.mjs`'s WCAG check resolves hex/rgb only — on OKLCH token sets
+   it reports pairs as unresolved rather than risk a wrong ratio; for OKLCH
+   contrast use the adapter's `_report.md` §2 or a browser check.)
 
 The `.dc.html` adapter's `_report.md` §3 round-trip table is a **math
 self-check** (same `toOklch` + inverse, confirms no sign/coefficient bug, lands

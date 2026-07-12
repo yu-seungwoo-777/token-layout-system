@@ -76,10 +76,48 @@ test("reads any *.css layout, not just the 4 canonical names", () => {
       ":root {\n  --gap: 16px;\n}\n"
     );
     const res = runVerifier(dir);
-    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    assert.equal(res.status, 0, `verifier failed: ${res.stderr}`);
     assert.match(res.stdout, /2 files/);
     assert.match(res.stdout, /Typography deps: ⚠ missing/);
     assert.match(res.stdout, /dangling var\(\) refs: ✅ none/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("fires the WCAG check on a low-contrast hex pair and fails --strict", () => {
+  // #CCCCCC on #FFFFFF is ~1.6:1 — well under AA 4.5:1. Locks the WCAG path
+  // (which only resolves hex/rgb — see the headline caveat).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "verify-tokens-test-"));
+  try {
+    fs.writeFileSync(
+      path.join(dir, "semantic.css"),
+      ":root {\n  --color-foreground: #CCCCCC;\n  --color-background: #FFFFFF;\n}\n"
+    );
+    const res = runVerifier(dir, ["--strict"]);
+    assert.notEqual(res.status, 0, "--strict should fail on a WCAG-AA failure");
+    assert.match(res.stderr, /WCAG/);
+    const warn = runVerifier(dir);
+    assert.match(warn.stdout, /WCAG AA: ❌/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("fires the dark-pair check when a --color-* role is missing in .dark", () => {
+  // --color-secondary is defined in :root but absent from .dark → a dark-pair
+  // gap. (Scoped to --color-*; a missing raw primitive like --space-2 is NOT
+  // flagged.) Locks the dark-pair path.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "verify-tokens-test-"));
+  try {
+    fs.writeFileSync(
+      path.join(dir, "semantic.css"),
+      ":root {\n  --color-primary: #FB8C42;\n  --color-secondary: #4FC3F7;\n}\n" +
+        ".dark {\n  --color-primary: #6366F1;\n}\n"
+    );
+    const res = runVerifier(dir);
+    assert.equal(res.status, 0, `verifier failed: ${res.stderr}`);
+    assert.match(res.stdout, /dark-pair gaps: ⚠ 1/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -125,7 +125,7 @@ contributors editing tokens directly — see `references/workflow.md`.
 ## Files
 - `assets/tokens/*.css` — the 4-layer token starter (copy verbatim, tweak values)
 - `assets/scripts/extract-dc.mjs` — **reference adapter** for the `.dc.html` format → 4-layer tokens (Step 1, branch B). One source format; adapt its principles for others.
-- `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG
+- `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG (best-effort: hex/rgb only — OKLCH pairs report unresolved)
 - `assets/scripts/__fixtures__/mini.dc.html` + `extract-dc.test.mjs` — converter contract test (`node --test assets/scripts/extract-dc.test.mjs`); `verify-tokens.test.mjs` — verifier contract test
 - `assets/globals.css` — `@theme inline` wiring
 - `assets/components/layout/*` — Shell / Header / Footer / Sidebar / grid CSS

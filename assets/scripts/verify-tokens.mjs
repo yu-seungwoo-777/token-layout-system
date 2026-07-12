@@ -26,8 +26,12 @@
 //                                 assets/components/typography.tsx is used
 //   3. dark-pair completeness   :root tokens missing a .dark value (if .dark
 //                                 exists) — incomplete dark mode
-//   4. WCAG contrast             fg/bg role pairs below AA 4.5:1 (best-effort:
-//                                 only pairs whose values resolve to a color)
+//   4. WCAG contrast             fg/bg role pairs below AA 4.5:1. Best-effort:
+//                                 resolves #hex/rgb() only — OKLCH/HSL/named
+//                                 report unresolved, so on the skill's own
+//                                 OKLCH format this check stays silent (use a
+//                                 browser check or extract-dc.mjs _report.md §2
+//                                 for OKLCH sources).
 //
 // --strict exits non-zero on dangling refs or WCAG-AA failures (the
 // hard-errors). Typography-dep and dark-pair gaps are warnings (they may be
@@ -59,9 +63,9 @@ const TYPOGRAPHY_DEPS = {
 // ============================ CLI ================================== //
 function parseArgs(argv) {
   const args = argv.slice(2);
-  if (args.length === 0 || args.includes("-h") || args.includes("--help")) {
-    return { help: true };
-  }
+  // No-args is NOT help — it's a misuse (CI would silently "pass"). Only
+  // explicit -h/--help exits 0; main() exits 1 when input is missing.
+  if (args.includes("-h") || args.includes("--help")) return { help: true };
   const input = args.find((a) => !a.startsWith("--"));
   return {
     input,
@@ -155,7 +159,7 @@ function declarationsFor(body, selector) {
 // Returns the resolved value (a literal if fully resolved) or null.
 function resolveVar(value, defs, seen = new Set()) {
   const s = String(value).trim();
-  const m = s.match(/^var\(\s*(--[a-z0-9-]+)(?:\s*,\s*([^)]+))?\)/i);
+  const m = s.match(/^var\(\s*(--[a-zA-Z0-9-]+)(?:\s*,\s*([^)]+))?\)/i);
   if (!m) return s; // already a literal
   const name = m[1];
   const fallback = m[2];
@@ -182,12 +186,12 @@ function readTokensDir(dir) {
 function findDanglingRefs(fileMap) {
   const defined = new Set();
   for (const body of Object.values(fileMap)) {
-    for (const m of stripComments(body).matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(m[1]);
+    for (const m of stripComments(body).matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) defined.add(m[1]);
   }
   const dangling = [];
   const seen = new Set();
   for (const [file, body] of Object.entries(fileMap)) {
-    for (const m of stripComments(body).matchAll(/var\(\s*(--[a-z0-9-]+)/g)) {
+    for (const m of stripComments(body).matchAll(/var\(\s*(--[a-zA-Z0-9-]+)/g)) {
       const name = m[1];
       if (defined.has(name)) continue;
       const key = `${file}:${name}`;
@@ -202,7 +206,7 @@ function findDanglingRefs(fileMap) {
 function findMissingTypographyDeps(fileMap) {
   const defined = new Set();
   for (const body of Object.values(fileMap)) {
-    for (const m of stripComments(body).matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(m[1]);
+    for (const m of stripComments(body).matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) defined.add(m[1]);
   }
   const missing = {};
   for (const [group, names] of Object.entries(TYPOGRAPHY_DEPS)) {
@@ -262,7 +266,7 @@ function emitReport({ dir, fileMap, dangling, typoMissing, dark, contrast }) {
   else {
     const uniq = [...new Set(dangling.map((d) => d.name))];
     L.push(`- ❌ **${dangling.length}개** [${uniq.length} unique]: ${uniq.map((t) => `\`${t}\``).join(", ")}`);
-    L.push(`  - 렌더 시 \`unset\`. 정의되지 않은 토큰을 참조하거나 raw 스케일이 빠진 것.`);
+    L.push(`  - 렌더 시 \`unset\` (또는 \`var(--x, fallback)\` 처럼 fallback이 있으면 그 값). 정의되지 않은 토큰을 참조하거나 raw 스케일이 빠진 것.`);
   }
   L.push(``);
   L.push(`## 2. Typography 의존 토큰`);
