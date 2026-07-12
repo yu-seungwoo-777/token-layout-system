@@ -1,15 +1,58 @@
-# DC `.dc.html` → tokens
+# Design source → tokens (Step 1, branch B)
 
-When the design source is a Claude Design `.dc.html`, run
-`assets/scripts/extract-dc.mjs` to produce the 4-layer token CSS instead of
-copying the default `assets/tokens/*.css`. This is **Step 1, branch B** of the
-workflow. This file is the operating reference for the converter — the what,
-the mapping, and the verification.
+When a design source exists — Claude Design (a `.dc.html` token doc *or* an SPA
+bundle), Figma, JSON — extract its tokens into the 4-layer model instead of
+copying the default `assets/tokens/*.css`. This file gives the **mapping
+principles** (they apply to any source), the **`.dc.html` reference adapter**
+(`extract-dc.mjs` — one instance), and **guidance for other sources** (SPA
+bundle, …).
 
-## Why a converter is needed
+> **Extraction is a *direction*, not one tool.** The source format varies, so a
+> frozen converter drifts — the same reason the skill ships a retrofit *table*,
+> not a frozen `button.tsx` (step 4). `extract-dc.mjs` is the reference adapter
+> for `.dc.html`; for other Claude Design exports and non-DC sources, apply the
+> principles below to the source you actually have, then verify with
+> `verify-tokens.mjs`.
+
+## Mapping principles (any source)
+
+Whatever the source, extraction into the 4 layers follows the same rules. The
+`.dc.html` adapter below is one realization; a hand-mapping of an SPA bundle is
+another. Internalize these — don't memorize a script.
+
+1. **Split into the 4 layers** — raw (primitives, the only literals) → semantic
+   (roles as `var()` of raw, under `:root`/`.dark`) → layout (structural) →
+   component (per-component exceptions). See *The four layers* below.
+2. **Map editorial names → shadcn roles** — `--bg`→`--color-background`,
+   `--text`→`--color-foreground`, `--primary`→`--color-primary` + `--color-ring`,
+   … (full table in *L2 semantic*). Preserve roles with no shadcn equivalent
+   (`--heading`, `-soft`).
+3. **Colors → OKLCH** — opacity modifiers (`bg-primary/50`) compile to
+   `color-mix(in oklab, …)`, honest only when the source is OKLCH (gotcha #12).
+4. **px → rem** (÷16). `999px` → `9999px` (Tailwind `radius-full`).
+5. **`var()`-indirection wherever the source value coincides with a raw
+   token** — if `--bg`'s hex *is* the slate-50 step, emit `var(--slate-50)`,
+   not a literal. Keeps one source of truth.
+6. **Faithful over defaults** — preserve the source's values (even soft muted
+   text below AA); warn, don't silently replace with generic defaults.
+7. **Mind the gaps the source doesn't cover** — an error color (add a `--red-*`
+   scale + `--color-danger`) and the Typography scale (`--text-*`/
+   `--leading-*`/`--weight-*` — `assets/components/typography.tsx` needs them).
+8. **Verify, don't trust the extract** — `node assets/scripts/verify-tokens.mjs
+   src/styles/tokens` (dangling refs, Typography deps, dark-pair completeness,
+   WCAG). Format-independent: same checks whatever produced the tokens.
+
+## The `.dc.html` reference adapter
+
+`extract-dc.mjs` is the worked example for the `.dc.html` format. Read it as an
+instantiation of the principles above; **don't extend it into a universal
+converter** — that's the trap. The rest of this file (down through *Trust &
+vm*) documents how that one adapter applies the principles to `.dc.html`.
+
+### Why the adapter exists (for `.dc.html` specifically)
 
 A DC `.dc.html` is not directly usable in a Next.js + Tailwind v4 + shadcn
-project. Four gaps, all closed by the converter:
+project. Four gaps the adapter closes:
 
 | Gap | DC source | Skill target |
 |---|---|---|
@@ -257,37 +300,76 @@ because the input is a Claude Design artifact **you control**. Do not run the
 converter against untrusted `.dc.html`. If you need hardened isolation, host
 extraction in a separate container.
 
+## Other Claude Design sources (SPA bundle, Figma, …)
+
+Claude Design exports more than `.dc.html`. An **SPA bundle** is a directory:
+`tokens/*.css` (colors / spacing / radius / typography / fonts), a
+`_ds_manifest.json` with a structured `tokens:[]` index, `styles.css`, plus
+`components/` and `ui_kits/`. There is **no `.dc.html`, no `[data-theme]`
+blocks, no `renderVals()`** — so the `.dc.html` adapter cannot read it (running
+it yields an empty/broken scaffold; its own report says so). This is the case
+that proves why extraction is a direction: apply the principles, don't force
+the wrong adapter.
+
+A bundle is actually *closer* to the target than a `.dc.html` — its tokens are
+already CSS custom properties. Map it by applying the principles directly:
+
+- **L1 raw** ← the bundle's base tokens (brand colors, `--space-*`, `--radius-*`,
+  `--fs-*`/`--lh-*`/`--fw-*`). Convert hex→OKLCH, px→rem (the bundle is usually
+  all hex/px).
+- **L2 semantic** ← the bundle's `var()` aliases (`--color-primary:
+  var(--orange)`, `--surface-page: var(--bg)`). Complete them to the full
+  shadcn role set; preserve editorial roles with no equivalent.
+- **L3 layout / L4 component** ← structural/component tokens (`--page-pad`,
+  `--gap-cards`, `--shadow-btn`, `--ring`); add Shell primitives.
+- **Watch the gaps** — a bundle may be single-theme (no `.dark`, by design —
+  e.g. an always-light kids' app), may omit an error color, and almost always
+  uses `--fs-*`/`--fw-*` not the `--text-*`/`--weight-*` Typography expects.
+  These are faithful to the source; decide deliberately, don't auto-fill.
+
+The bundle's `_ds_manifest.json` `tokens:[]` array (`{name, value, kind,
+definedIn}`) is a machine-readable inventory — handy for driving a one-off
+adapter script, but you can also hand-map from `tokens/*.css` directly. Either
+way, finish with `verify-tokens.mjs` on the result (it reads any `*.css`
+layout, so it checks a bundle-assembled dir exactly like a `.dc.html`-derived
+one).
+
 ## Verification beyond this script
 
-The converter does **static** verification only — what it can prove without a
-browser or build: OKLCH math self-check, `var()` ref integrity (every `var()`
-in the emitted files is defined in one of them — catches `DC_SPEC` layout/
-component refs into absent scales, whether the input is a full mockup or just
-missing one step), dark-pair completeness, WCAG contrast, and raw-scale
-coverage. It deliberately does **not** claim a browser-render proof. Before
-trusting DC output in a real app, run the gates the skill itself preaches
-(Step 6):
+Two layers of verification:
 
-1. **CSS parse** — run the four files through `lightningcss`/`postcss` to catch
+1. **`verify-tokens.mjs`** (this skill, format-independent) — run it on the
+   *result* dir whatever produced it (`.dc.html` adapter, SPA-bundle mapping,
+   hand-written, the default `assets/tokens/`). Checks dangling `var()` refs,
+   Typography deps, dark-pair completeness, WCAG. `--strict` fails on dangling
+   refs or WCAG-AA fails.
+2. The `.dc.html` adapter *also* self-verifies its own output (`_report.md`) —
+   OKLCH math self-check, `var()` ref integrity, dark-pair completeness, WCAG,
+   raw-scale coverage, Typography deps. That's the adapter checking itself; for
+   any other source, use `verify-tokens.mjs` instead.
+
+Beyond static checks (whether `verify-tokens.mjs` or the adapter's own
+`_report.md`), no script proves a browser render. Before trusting token output
+in a real app, run the gates the skill itself preaches (Step 6):
+
+1. **CSS parse** — run the files through `lightningcss`/`postcss` to catch
    malformed declarations or `@import`/`@theme` ordering the brace-count can't
    see. (Not bundled — the skill is zero-dep; install ad hoc: `npx lightningcss …`.)
-2. **Build + render readback** — wire a fixture Next app with the DC output
+2. **Build + render readback** — wire a fixture Next app with the tokens
    **and** the skill's `Shell`/`Typography`, then `next build` + a Playwright
    smoke that reads `getComputedStyle` for each role in light and dark. This is
    the only thing that actually proves `.dark` flips colors, `@theme inline`
-   resolves, and no token the Shell/Typography needs is missing. For the
-   round-trip specifically, it also lets you diff the **rendered** sRGB against
-   the source hex — a real fidelity check, stronger than the math self-check.
-3. **`--strict` in CI** — `node extract-dc.mjs … --strict` exits non-zero on
-   incomplete dark pairs, empty raw-scale coverage, dangling `var()` refs
-   (layout/component pointing at raw tokens the input didn't expose), or any
-   WCAG-AA text-pair failure. Wire it into the design-source pipeline so a DC
-   edit that breaks dark parity or contrast fails before it ships.
+   resolves, and no token the Shell/Typography needs is missing.
+3. **`--strict` in CI** — `node verify-tokens.mjs … --strict` (any source) or
+   `node extract-dc.mjs … --strict` (`.dc.html`) exits non-zero on dangling
+   `var()` refs or WCAG-AA failures. Wire it in so a token edit that breaks
+   structure or contrast fails before it ships.
 
-The round-trip table in `_report.md` §3 is a **math self-check** (same
-`toOklch` + inverse, confirms no sign/coefficient bug, lands within Δ ≤ 1/255
-per channel). It is *not* a browser-render proof — for sRGB-in-gamut colors
-the conclusion happens to hold, but establishing it is gate 2's job.
+The `.dc.html` adapter's `_report.md` §3 round-trip table is a **math
+self-check** (same `toOklch` + inverse, confirms no sign/coefficient bug, lands
+within Δ ≤ 1/255 per channel). It is *not* a browser-render proof — for
+sRGB-in-gamut colors the conclusion happens to hold, but establishing it is
+gate 2's job.
 
 ## Relationship to existing gates
 
