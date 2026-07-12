@@ -40,6 +40,8 @@ The skill walks through seven steps. Full detail, exact commands, and the accept
 
 Whichever branch, wire the 4 layers into `globals.css` via `@theme inline` — the self-referential pattern (`--color-primary: var(--color-primary)`) is what carries dark mode, because the cycle is invalid at computed-value time and the real value resolves from `:root`/`.dark` by source order (gotcha #1 has the verified mechanism; the `inline` keyword itself is decorative for this shape).
 
+**When extraction gets hard**, it's one of two things, and the skill has a documented protocol for each — *surface it, don't silently resolve it*: **(a) insufficient content** (the source designates no value for a needed role — flag + fill with a principled default, or stop-and-ask if it's a product decision like dark mode) vs **(b) intent ambiguity** (the source fills a role unclearly — candidates exist but none designated, or it contradicts itself — stop-and-ask with concrete options, then regenerate). See [`references/dc-to-tokens.md`](references/dc-to-tokens.md) → *When extraction gets hard*. A defensible choice buried in the output is still a silent design decision.
+
 **2. `Shell` + primitives.** A cva-driven layout component using **CSS Grid Template Areas** (not flexbox) for the header/main/footer structure:
 ```ts
 columns?: 1 | 2 | 3                       // default 1
@@ -89,7 +91,7 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 - `assets/scripts/extract-dc.mjs` — **reference adapter** for the `.dc.html` format → 4-layer tokens (Step 1, branch B), with `__fixtures__/mini.dc.html` + `extract-dc.test.mjs` contract tests (`node --test assets/scripts/extract-dc.test.mjs`). One source format; adapt its principles for others.
 - `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG (best-effort: hex/rgb only). `verify-tokens.test.mjs` contract tests (`node --test assets/scripts/verify-tokens.test.mjs`).
 - `references/workflow.md` — the seven build steps in detail (read per-step as you enter each one)
-- `references/dc-to-tokens.md` — DC `.dc.html` extraction in detail: mapping table, wiring, WCAG/trust notes (read for Step 1 branch B)
+- `references/dc-to-tokens.md` — design-source → 4-layer **mapping principles** (any source), the `.dc.html` reference adapter, SPA-bundle guidance, and a protocol for when extraction gets hard (insufficient content vs intent ambiguity). Read for Step 1 branch B.
 - `references/shadcn-retrofit.md` — full before/after class table for retrofitting shadcn output onto the token layer
 - `references/gotchas.md` — the full write-up of the 12 traps above
 - `scripts/verify.sh` — the three-layer verification pipeline
