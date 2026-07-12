@@ -22,9 +22,12 @@
 // Zero dependencies — Node 20+ builtins only (fs, path, vm, crypto).
 //
 // Verification performed by this script (see _report.md): OKLCH math
-// self-check (hex→OKLCH→hex round-trip), var() reference integrity, dark
-// pair completeness, WCAG contrast on foreground/background pairs, token
-// coverage. What it does NOT do: run a real CSS parser, a Next build, or a
+// self-check (hex→OKLCH→hex round-trip), var() color-ref integrity (by
+// construction — resolver refs only target scales that were actually
+// extracted), dark pair completeness, WCAG contrast on foreground/background
+// pairs, token coverage. NOTE: the DC_SPEC layout/component var() refs
+// (var(--space-N)/var(--radius-*)) are NOT validated — if the input lacks
+// those scales the refs dangle; _report.md §1 flags this when raw is empty. What it does NOT do: run a real CSS parser, a Next build, or a
 // browser render — see references/dc-to-tokens.md → "Verification beyond
 // this script" for the recommended gates (lightningcss, next build,
 // Playwright getComputedStyle).
@@ -334,6 +337,10 @@ function extractType(vals) {
 // ===================== unit helpers =============================== //
 function pxToRem(px) {
   const n = parseFloat(px);
+  // parseFloat(undefined/garbage) → NaN; without this a malformed DC value
+  // would silently emit "NaNrem". Fall back to the original token so the gap
+  // is visible in the output rather than hidden behind a bogus value.
+  if (!Number.isFinite(n)) return String(px);
   return `${(n / 16).toFixed(5).replace(/\.?0+$/, "")}rem`;
 }
 function radiusVal(px) {
@@ -634,8 +641,10 @@ function emitReport({ sourceName, sha, themes, slate, spacing, radii, type, bran
   const darkOk = report.darkMissing.length === 0;
   L.push(``);
   L.push(`- **dark 쌍 완전성**: ${darkOk ? "✅" : "❌ 누락 " + report.darkMissing.join(", ")}`);
+  L.push(`- ℹ️ **구조/컴포넌트 값(DC_SPEC)은 \`Design Tokens.dc.html\` 기준 상수** — header-height·button radius·focus ring 등을 이 파일에서 발췌해 모든 입력에 적용. 입력 DC가 다르면 값이 다를 수 있으니 layout.css/component.css를 재확인할 것.`);
   const lowCoverage = slate.length === 0 && spacing.length === 0 && radii.length === 0 && type.length === 0;
   if (lowCoverage) L.push(`- ⚠️ **raw 스케일 비어 있음** — renderVals에서 slate/spacing/radii/type를 얻지 못함. semantic.css는 정상이나 raw 계층이 빈 상태로 설치될 수 있음.`);
+  if (lowCoverage) L.push(`- ⚠️ **layout.css / component.css var() 참조 단절** — 이 파일들의 \`var(--space-N)\`·\`var(--radius-*)\` 참조가 raw.css에 정의되지 않아 깨짐. 구조값을 별도 채우거나 해당 DC 소스에 scale 배열을 추가할 것.`);
   if (unparsable.size) L.push(`- ⚠️ **변환 불가 색** (원문 그대로 방출): ${[...unparsable].map((s) => `\`${s}\``).join(", ")}`);
   L.push(``);
 
@@ -838,7 +847,7 @@ function main() {
         const bgh = roleToDc[bg] ? themes[mode][roleToDc[bg]] : undefined;
         if (!fgh || !bgh) continue;
         const r = contrastRatio(fgh, bgh);
-        if (!Number.isNaN(r) && r < 4.5) { strictFailures.push(`WCAG AA fail ${fg}/${bg} (${mode}) ${r.toFixed(2)}:1`); break; }
+        if (!Number.isNaN(r) && r < 4.5) strictFailures.push(`WCAG AA fail ${fg}/${bg} (${mode}) ${r.toFixed(2)}:1`);
       }
     }
     if (strictFailures.length) {

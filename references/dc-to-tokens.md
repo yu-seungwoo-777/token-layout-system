@@ -70,9 +70,14 @@ flow does (copy `assets/globals.css`).
    sandbox → drives `raw.css` and the component-radius/spacing roles.
 3. **`DC_SPEC` constant table** — structural/component values DC states in
    prose but does not expose via arrays (container 70rem, prose 46rem, header
-   60px, button 44/22/10, focus 2px/2px, touch target 44px). Hardcoded in the
-   script with a DC-section citation per value, rather than scraped from
-   fragile inline styles.
+   4rem/64px, button 44/22/10, focus 2px/2px, touch target 44px). Hardcoded in
+   the script with a DC-section citation per value, rather than scraped from
+   fragile inline styles. **These constants are sourced from the
+   `Design Tokens.dc.html` reference and applied to every input** — if your
+   DC source specifies a different header height, button radius, or focus ring,
+   the converter will *not* pick it up; review `layout.css`/`component.css`
+   after conversion. `_report.md` §1 notes this. (The scales — slate, spacing,
+   radii, type — are scraped per-file, so they do track the input.)
 
 If `renderVals()` evaluation fails (or the arrays are absent — e.g. a mockup
 `.dc.html` whose `renderVals()` returns UI data, not token arrays), the
@@ -276,8 +281,10 @@ the conclusion happens to hold, but establishing it is gate 2's job.
 
 | Symptom | Cause / fix |
 |---|---|
-| `renderVals eval failed` in `_report.md` | The DC script referenced something the stub doesn't provide. Converter still emits `semantic.css` from CSS blocks. Extend the `DCLogic`/`React` stub in `extract-dc.mjs` if you need the arrays. |
+| `renderVals eval failed` / `did not define class Component` | The converter runs the DC script expecting a class named **`Component`** to be a global — it appends `globalThis.__DC = Component` and instantiates that. If the DC file names its class differently or exports it another way, eval fails and the raw scales come up empty. Converter still emits `semantic.css` from the CSS blocks; rename/alias the class or extend the stub in `extract-dc.mjs`. |
 | `dark pairs MISSING` | A role's DC var exists in light but not dark. Add the dark value to the DC source and regenerate. |
+| `raw 스케일 비어 있음` + tokens look broken | The DC file is a mockup (its `renderVals()` returns UI data, not token arrays). `layout.css`/`component.css` still reference `var(--space-N)`/`var(--radius-*)` that are now undefined — fill those scales in `raw.css` or feed the converter a token-reference DC file instead. |
+| Structural specs wrong (header height, button radius, …) | `DC_SPEC` values are hardcoded from `Design Tokens.dc.html` and applied to all inputs. If your source differs, edit `layout.css`/`component.css` after conversion (or the `DC_SPEC` table for repeated use). |
 | Color looks slightly off | Check `_report.md` §2 — any Δ > 1 is flagged. Δ ≤ 1 is visually identical. |
 | `text-3xl` doesn't resolve | Type-scale gotcha above — add `--text-3xl` to `raw.css` or use `text-h1`. |
 | `bg-destructive` shows indigo | `--color-danger` is a primary placeholder — replace with a real red. |

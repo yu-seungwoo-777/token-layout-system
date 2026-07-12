@@ -1,0 +1,100 @@
+<!--
+  mini.dc.html — minimal Claude Design fixture for the converter's contract test.
+
+  NOT a real DC export — a hand-trimmed token reference with exactly the two
+  machine-readable surfaces the converter reads: the [data-theme] CSS-variable
+  blocks and the renderVals() scale arrays in the DC script block (the tag
+  carrying the data-dc-script attribute — written indirectly here so this very
+  comment doesn't trip the converter's own regex).
+  Component demos / prose are stripped. Every value is a real sRGB hex/rgba so
+  the OKLCH round-trip self-check stays well within Δ ≤ 1.
+
+  Pairs with extract-dc.test.mjs. If you change the contract (new role, new
+  scale, new emitted token), update the assertions there too.
+-->
+<!doctype html>
+<html lang="en">
+<helmet>
+  <style>
+    [data-theme="light"] {
+      --bg: #f6f7f9;
+      --text: #545b68;
+      --surface: #ffffff;
+      --surface2: #e2e5ea;
+      --strong: #1f242e;
+      --muted: #8b93a1;
+      --border: #e2e5ea;
+      --primary: #4f46e5;
+      --secondary: #4338ca;
+      --accent: #14b8a6;
+      --onprimary: #ffffff;
+      --heading: #1f242e;
+      --primarySoft: rgba(79, 70, 229, 0.12);
+      --accentSoft: rgba(20, 184, 166, 0.12);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    [data-theme="dark"] {
+      --bg: #0f1318;
+      --text: #b6bdc9;
+      --surface: #1f242e;
+      --surface2: #3a4150;
+      --strong: #f6f7f9;
+      --muted: #8b93a1;
+      --border: #3a4150;
+      --primary: #6366f1;
+      --secondary: #4f46e5;
+      --accent: #2dd4bf;
+      --onprimary: #ffffff;
+      --heading: #f6f7f9;
+      --primarySoft: rgba(99, 102, 241, 0.16);
+      --accentSoft: rgba(45, 212, 191, 0.16);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+  </style>
+</helmet>
+
+<body>
+  <!-- component demos omitted on purpose — the converter ignores them -->
+
+  <script data-dc-script>
+    class Component extends DCLogic {
+      renderVals() {
+        return {
+          brandColors: [
+            { token: "--primary", hex: "#4f46e5", role: "primary indigo" },
+            { token: "--secondary", hex: "#4338ca", role: "primary hover (darker indigo)" },
+            { token: "--accent", hex: "#14b8a6", role: "accent teal" },
+          ],
+          slateRamp: [
+            { step: 50, hex: "#f6f7f9", usage: "canvas bg" },
+            { step: 200, hex: "#e2e5ea", usage: "borders" },
+            { step: 400, hex: "#8b93a1", usage: "muted text" },
+            { step: 500, hex: "#545b68", usage: "body text" },
+            { step: 900, hex: "#0f1318", usage: "dark canvas" },
+          ],
+          spacing: [
+            { px: "4px", usage: "inline gap" },
+            { px: "8px", usage: "tight stack" },
+            { px: "24px", usage: "section pad x" },
+            { px: "44px", usage: "section pad y · touch target" },
+          ],
+          radii: [
+            { name: "sm", px: "4px", usage: "small controls" },
+            { name: "control", px: "10px", usage: "buttons · inputs" },
+            { name: "card", px: "12px", usage: "cards · tables" },
+            { name: "pill", px: "999px", usage: "badges · chips" },
+          ],
+          typeScale: [
+            { label: "Display", rem: "2.5rem", weight: 800 },
+            { label: "H1", rem: "2rem", weight: 800 },
+            { label: "H2", rem: "1.625rem", weight: 800 },
+            { label: "Body", rem: "1rem", weight: 400 },
+            { label: "Small", rem: "0.84375rem", weight: 500 },
+            { label: "Caption", rem: "0.75rem", weight: 500 },
+          ],
+        };
+      }
+    }
+  </script>
+</body>
+</html>

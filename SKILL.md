@@ -110,6 +110,7 @@ contributors editing tokens directly — see `references/workflow.md`.
 ## Files
 - `assets/tokens/*.css` — the 4-layer token starter (copy verbatim, tweak values)
 - `assets/scripts/extract-dc.mjs` — DC `.dc.html` → 4-layer tokens (Step 1, branch B)
+- `assets/scripts/__fixtures__/mini.dc.html` + `extract-dc.test.mjs` — converter contract test (`node --test assets/scripts/extract-dc.test.mjs`)
 - `assets/globals.css` — `@theme inline` wiring
 - `assets/components/layout/*` — Shell / Header / Footer / Sidebar / grid CSS
 - `assets/components/typography.tsx` — Typography (shadcn doesn't ship it)
