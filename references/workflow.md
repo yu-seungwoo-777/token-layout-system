@@ -60,9 +60,21 @@ Pick the branch by what the design source is:
   `references/dc-to-tokens.md` → 접근성). Run `--strict` to fail CI on dark-pair
   gaps, empty raw coverage, dangling `var()` refs (layout/component pointing at
   absent raw scales — fires on mockup or partial-scale inputs), or WCAG-AA text
-  failures.
-- **(C) Otherwise (Figma / JSON / no source)** → copy the default four files
-  in `assets/tokens/` to `src/styles/tokens/`:
+  failures. The adapter is `.dc.html`-specific — extraction is a *direction*
+  (`references/dc-to-tokens.md` → Mapping principles), not a universal tool.
+  For any source, finish with `node assets/scripts/verify-tokens.mjs
+  src/styles/tokens` (format-independent: dangling refs, Typography deps,
+  dark-pair completeness, WCAG).
+- **(C) Non-`.dc.html` design source (Claude Design SPA bundle, Figma, JSON)**
+  → the source has real tokens but isn't `.dc.html`, so the adapter can't read
+  it. Don't copy defaults (that discards the source). Apply the mapping
+  principles in `references/dc-to-tokens.md` → *Mapping principles* /
+  *Other Claude Design sources* to extract into the 4 layers, then verify with
+  `node assets/scripts/verify-tokens.mjs src/styles/tokens`. An SPA bundle
+  (`tokens/*.css` + `_ds_manifest.json`) is already mostly raw-layer CSS —
+  hand-map or write a one-off adapter from its `tokens:[]` index.
+- **(D) No source** → copy the default four files in `assets/tokens/` to
+  `src/styles/tokens/`:
   - **raw.css** — primitives only (OKLCH color scales, `--space-1..8`,
     `--radius-*`, `--text-*`, weights). The *only* literals in the system.
   - **semantic.css** — role tokens (`--color-primary`, `--color-background`,

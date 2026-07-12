@@ -55,14 +55,29 @@ internals and gotchas are style-specific (worked examples, not drop-ins).
 
 **1. Token source — obtain or extract.** Pick the branch by what the design
 source is: **(A)** `src/styles/tokens/*.css` already exists → skip; **(B)** a
-Claude Design `.dc.html` is the source → run
-`node assets/scripts/extract-dc.mjs <file> --out src/styles/tokens` (read
-`references/dc-to-tokens.md`); **(C)** otherwise → copy the default
-`assets/tokens/*.css`. Whichever branch, wire the 4 layers (raw → semantic →
-layout → component) via `@theme inline`. The self-referential `var(--x)`
-pattern is what keeps dark mode working (the cycle is invalid at
+design source exists (Claude Design, Figma, JSON) → extract its tokens into
+the 4 layers following `references/dc-to-tokens.md`; **(C)** otherwise → copy
+the default `assets/tokens/*.css`. Whichever branch, wire the 4 layers (raw →
+semantic → layout → component) via `@theme inline`. The self-referential
+`var(--x)` pattern is what keeps dark mode working (the cycle is invalid at
 computed-value time, so values come from `:root`/`.dark` by source order) —
 see gotcha #1 for the verified mechanism.
+
+*Extraction is a **direction**, not one tool* — the source format varies, so a
+frozen converter would drift (the same reason no retrofitted `button.tsx`
+ships; see step 4). For **(B)**: `assets/scripts/extract-dc.mjs` is a
+**reference adapter for the `.dc.html` format** (run it: `node
+assets/scripts/extract-dc.mjs <file> --out src/styles/tokens`). Claude Design
+also exports **SPA bundles** — a directory of `tokens/*.css` +
+`_ds_manifest.json` + components, with no `.dc.html`, no `[data-theme]`
+blocks; for those (or Figma/JSON), apply the mapping principles in
+`references/dc-to-tokens.md` (role table, hex→OKLCH, var()-indirection,
+faithful-over-defaults) to the source you actually have. Don't force a
+non-`.dc.html` source through the `.dc.html` adapter — it produces a broken
+scaffold (the adapter's own report flags it). Whatever produced the tokens,
+verify with `node assets/scripts/verify-tokens.mjs src/styles/tokens`
+(format-independent: dangling `var()` refs, Typography deps, dark-pair
+completeness, WCAG).
 
 **2. `Shell` + primitives.** Copy `assets/components/layout/` (Shell, Header,
 Footer, Sidebar, grid CSS). Grid Template Areas for the header/main/footer
@@ -109,15 +124,16 @@ contributors editing tokens directly — see `references/workflow.md`.
 
 ## Files
 - `assets/tokens/*.css` — the 4-layer token starter (copy verbatim, tweak values)
-- `assets/scripts/extract-dc.mjs` — DC `.dc.html` → 4-layer tokens (Step 1, branch B)
-- `assets/scripts/__fixtures__/mini.dc.html` + `extract-dc.test.mjs` — converter contract test (`node --test assets/scripts/extract-dc.test.mjs`)
+- `assets/scripts/extract-dc.mjs` — **reference adapter** for the `.dc.html` format → 4-layer tokens (Step 1, branch B). One source format; adapt its principles for others.
+- `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG (best-effort: hex/rgb only — OKLCH pairs report unresolved)
+- `assets/scripts/__fixtures__/mini.dc.html` + `extract-dc.test.mjs` — converter contract test (`node --test assets/scripts/extract-dc.test.mjs`); `verify-tokens.test.mjs` — verifier contract test
 - `assets/globals.css` — `@theme inline` wiring
 - `assets/components/layout/*` — Shell / Header / Footer / Sidebar / grid CSS
 - `assets/components/typography.tsx` — Typography (shadcn doesn't ship it)
 - `assets/playwright.config.ts`, `assets/e2e/smoke.spec.ts` — runtime gate
 - `scripts/verify.sh` — the 3-layer verify pipeline
 - `references/workflow.md` — the seven steps in detail (read per-step)
-- `references/dc-to-tokens.md` — DC `.dc.html` extraction (read for Step 1 branch B)
+- `references/dc-to-tokens.md` — design-source → 4-layer **mapping principles** + the `.dc.html` reference adapter (read for Step 1 branch B)
 - `references/shadcn-retrofit.md` — before/after class table (read at steps 4–5)
 - `references/gotchas.md` — base-ui / Tailwind v4 traps (read before step 5)
 - `evals/evals.json` + `evals/rubrics.md` — prompts + pass/fail checklists for benchmarking

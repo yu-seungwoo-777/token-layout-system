@@ -31,8 +31,8 @@ The skill walks through seven steps. Full detail, exact commands, and the accept
 
 **1. Token source — obtain or extract.** Pick the branch by what the design source is:
 - **(A)** `src/styles/tokens/*.css` already exists → skip.
-- **(B)** a Claude Design `.dc.html` is the source → run `node assets/scripts/extract-dc.mjs <file> --out src/styles/tokens` to generate the 4-layer CSS from the DC scales + semantic vars (see [`references/dc-to-tokens.md`](references/dc-to-tokens.md) for the mapping, wiring, and the gaps DC doesn't cover, e.g. an error color).
-- **(C)** otherwise (Figma / JSON / no source) → copy the default four CSS files from `assets/tokens/` into `src/styles/tokens/`:
+- **(B)** a design source exists → *extract its tokens into the 4 layers*. `assets/scripts/extract-dc.mjs` is the **reference adapter for `.dc.html`** specifically (`node assets/scripts/extract-dc.mjs <file> --out src/styles/tokens`). Claude Design also exports **SPA bundles** (a `tokens/` dir + `_ds_manifest.json`) and you may have Figma/JSON — for those, apply the mapping principles in [`references/dc-to-tokens.md`](references/dc-to-tokens.md) (the `.dc.html` adapter won't read them). Extraction is a *direction*, not one tool. Whatever the source, finish with `node assets/scripts/verify-tokens.mjs src/styles/tokens`.
+- **(C)** no source → copy the default four CSS files from `assets/tokens/` into `src/styles/tokens/`:
   - `raw.css` — primitives only (OKLCH color scales, `--space-1..8`, `--radius-*`, `--text-*`, weights). The only literals in the whole system.
   - `semantic.css` — role tokens (`--color-primary`, `--color-background`, `--color-danger`…) as `var()` of raw, redefined under `.dark`.
   - `layout.css` — structural sizes (`--header-height`, `--sidebar-width`, `--grid-3col-ratio`…).
@@ -86,7 +86,8 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 
 - `SKILL.md` — the workflow Claude Code actually loads (English only — this README has a Korean translation at `README.ko.md`, but `SKILL.md` itself doesn't, since translating it doesn't change what Claude Code loads).
 - `assets/` — starter token CSS, `Shell`/`Header`/`Footer`/`Sidebar`, `globals.css` wiring, `Typography`, Playwright config + smoke spec
-- `assets/scripts/extract-dc.mjs` — DC `.dc.html` → 4-layer token converter (Step 1, branch B), with `__fixtures__/mini.dc.html` + `extract-dc.test.mjs` contract tests (`node --test assets/scripts/extract-dc.test.mjs`)
+- `assets/scripts/extract-dc.mjs` — **reference adapter** for the `.dc.html` format → 4-layer tokens (Step 1, branch B), with `__fixtures__/mini.dc.html` + `extract-dc.test.mjs` contract tests (`node --test assets/scripts/extract-dc.test.mjs`). One source format; adapt its principles for others.
+- `assets/scripts/verify-tokens.mjs` — **format-independent** token verifier (any source): dangling `var()` refs, Typography deps, dark-pair completeness, WCAG (best-effort: hex/rgb only). `verify-tokens.test.mjs` contract tests (`node --test assets/scripts/verify-tokens.test.mjs`).
 - `references/workflow.md` — the seven build steps in detail (read per-step as you enter each one)
 - `references/dc-to-tokens.md` — DC `.dc.html` extraction in detail: mapping table, wiring, WCAG/trust notes (read for Step 1 branch B)
 - `references/shadcn-retrofit.md` — full before/after class table for retrofitting shadcn output onto the token layer
