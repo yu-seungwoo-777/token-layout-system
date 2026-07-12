@@ -29,13 +29,16 @@ The skill walks through seven steps. Full detail, exact commands, and the accept
 
 **0. Scaffold.** `create-next-app` + `shadcn init` + `separator`/`sheet`/`skeleton`. The installed shadcn *style* varies (Radix vs. the newer `@base-ui/react`-based `base-nova`) — check `components.json`'s `"style"` field before assuming which API you're dealing with.
 
-**1. Token layer.** Copy four CSS files into `src/styles/tokens/`:
-- `raw.css` — primitives only (OKLCH color scales, `--space-1..8`, `--radius-*`, `--text-*`, weights). The only literals in the whole system.
-- `semantic.css` — role tokens (`--color-primary`, `--color-background`, `--color-danger`…) as `var()` of raw, redefined under `.dark`.
-- `layout.css` — structural sizes (`--header-height`, `--sidebar-width`, `--grid-3col-ratio`…).
-- `component.css` — per-component exceptions (`--button-radius`, `--input-height`…).
+**1. Token source — obtain or extract.** Pick the branch by what the design source is:
+- **(A)** `src/styles/tokens/*.css` already exists → skip.
+- **(B)** a Claude Design `.dc.html` is the source → run `node assets/scripts/extract-dc.mjs <file> --out src/styles/tokens` to generate the 4-layer CSS from the DC scales + semantic vars (see [`references/dc-to-tokens.md`](references/dc-to-tokens.md) for the mapping, wiring, and the gaps DC doesn't cover, e.g. an error color).
+- **(C)** otherwise (Figma / JSON / no source) → copy the default four CSS files from `assets/tokens/` into `src/styles/tokens/`:
+  - `raw.css` — primitives only (OKLCH color scales, `--space-1..8`, `--radius-*`, `--text-*`, weights). The only literals in the whole system.
+  - `semantic.css` — role tokens (`--color-primary`, `--color-background`, `--color-danger`…) as `var()` of raw, redefined under `.dark`.
+  - `layout.css` — structural sizes (`--header-height`, `--sidebar-width`, `--grid-3col-ratio`…).
+  - `component.css` — per-component exceptions (`--button-radius`, `--input-height`…).
 
-Wire them into `globals.css` via `@theme inline` — the self-referential pattern (`--color-primary: var(--color-primary)`) is what carries dark mode, because the cycle is invalid at computed-value time and the real value resolves from `:root`/`.dark` by source order (gotcha #1 has the verified mechanism; the `inline` keyword itself is decorative for this shape).
+Whichever branch, wire the 4 layers into `globals.css` via `@theme inline` — the self-referential pattern (`--color-primary: var(--color-primary)`) is what carries dark mode, because the cycle is invalid at computed-value time and the real value resolves from `:root`/`.dark` by source order (gotcha #1 has the verified mechanism; the `inline` keyword itself is decorative for this shape).
 
 **2. `Shell` + primitives.** A cva-driven layout component using **CSS Grid Template Areas** (not flexbox) for the header/main/footer structure:
 ```ts
@@ -83,7 +86,9 @@ Condensed from [`references/gotchas.md`](references/gotchas.md) — each cost re
 
 - `SKILL.md` — the workflow Claude Code actually loads (English only — this README has a Korean translation at `README.ko.md`, but `SKILL.md` itself doesn't, since translating it doesn't change what Claude Code loads).
 - `assets/` — starter token CSS, `Shell`/`Header`/`Footer`/`Sidebar`, `globals.css` wiring, `Typography`, Playwright config + smoke spec
+- `assets/scripts/extract-dc.mjs` — DC `.dc.html` → 4-layer token converter (Step 1, branch B), with `__fixtures__/mini.dc.html` + `extract-dc.test.mjs` contract tests (`node --test assets/scripts/extract-dc.test.mjs`)
 - `references/workflow.md` — the seven build steps in detail (read per-step as you enter each one)
+- `references/dc-to-tokens.md` — DC `.dc.html` extraction in detail: mapping table, wiring, WCAG/trust notes (read for Step 1 branch B)
 - `references/shadcn-retrofit.md` — full before/after class table for retrofitting shadcn output onto the token layer
 - `references/gotchas.md` — the full write-up of the 12 traps above
 - `scripts/verify.sh` — the three-layer verification pipeline
