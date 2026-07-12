@@ -33,17 +33,42 @@ rules than the base-ui ones in gotchas. The one invariant across styles: fresh
 shadcn output smuggles in raw px, so the grep-then-retrofit loop is mandatory
 either way.
 
-## 1. Token layer — copy, don't hand-write
+## 1. Token source — obtain or extract
 
-Copy the four files in `assets/tokens/` to `src/styles/tokens/`:
-- **raw.css** — primitives only (OKLCH color scales, `--space-1..8`,
-  `--radius-*`, `--text-*`, weights). The *only* literals in the system.
-- **semantic.css** — role tokens (`--color-primary`, `--color-background`,
-  `--color-danger`…) as `var()` of raw, redefined under `.dark`. Plus
-  unprefixed aliases (`--primary`…) for base-ui internals that read them.
-- **layout.css** — `--header-height`, `--sidebar-width`, `--grid-3col-ratio`…
-- **component.css** — per-component exception tokens (`--button-radius`,
-  `--input-height`, `--switch-*`…).
+Pick the branch by what the design source is:
+
+- **(A) `src/styles/tokens/*.css` already exists** → skip this step.
+- **(B) A Claude Design `.dc.html` is the source** → run the converter:
+  ```
+  node assets/scripts/extract-dc.mjs "<your-design-tokens>.dc.html" --out src/styles/tokens
+  ```
+  It materializes DC's scales (slate ramp, spacing, type, radii) into
+  `raw.css`, maps DC's semantic vars to shadcn `--color-*` roles in
+  `semantic.css` (`:root`/`.dark`), and emits DC's structural/component specs
+  into `layout.css`/`component.css` — plus `_manifest.json` and a verification
+  `_report.md` (read it: it proves hex→OKLCH round-trip accuracy and flags any
+  dark-pair gaps or off-ramp literals). DC-specific roles with no shadcn
+  equivalent (`--color-heading/-strong/-highlight/-primary-soft/-accent-soft`)
+  are preserved; expose them in `@theme inline` if you want utilities. Full
+  mapping table, wiring, and troubleshooting in `references/dc-to-tokens.md`.
+  Shell primitive tokens (`--sidebar-width`, `--footer-height`,
+  `--grid-3col-ratio`, …) are emitted alongside DC values (commented
+  `Shell primitive`), so DC output is a drop-in for the `Shell`/`grid.css`.
+  Two things DC does **not** provide, so handle them after: an error color
+  (`--color-danger` is omitted — add a `--red-*` scale) and a WCAG check on
+  `--color-muted-foreground` (the `_report.md` contrast gate flags it; see
+  `references/dc-to-tokens.md` → 접근성). Run `--strict` to fail CI on dark-pair
+  gaps, empty raw coverage, or WCAG-AA text failures.
+- **(C) Otherwise (Figma / JSON / no source)** → copy the default four files
+  in `assets/tokens/` to `src/styles/tokens/`:
+  - **raw.css** — primitives only (OKLCH color scales, `--space-1..8`,
+    `--radius-*`, `--text-*`, weights). The *only* literals in the system.
+  - **semantic.css** — role tokens (`--color-primary`, `--color-background`,
+    `--color-danger`…) as `var()` of raw, redefined under `.dark`. Plus
+    unprefixed aliases (`--primary`…) for base-ui internals that read them.
+  - **layout.css** — `--header-height`, `--sidebar-width`, `--grid-3col-ratio`…
+  - **component.css** — per-component exception tokens (`--button-radius`,
+    `--input-height`, `--switch-*`…).
 
 Then wire them in `src/app/globals.css` (copy `assets/globals.css`): import
 the four files, then expose them via `@theme inline`. The self-reference

@@ -53,11 +53,16 @@ you enter each step. Read `references/gotchas.md` before step 5.
 Architecture (tokens, Shell, grep guard, verify) is style-agnostic; component
 internals and gotchas are style-specific (worked examples, not drop-ins).
 
-**1. Token layer.** Copy the 4-layer CSS into `src/styles/tokens/` (raw →
-semantic → layout → component) and wire via `@theme inline`. The
-self-referential `var(--x)` pattern is what keeps dark mode working (the
-cycle is invalid at computed-value time, so values come from
-`:root`/`.dark` by source order) — see gotcha #1 for the verified mechanism.
+**1. Token source — obtain or extract.** Pick the branch by what the design
+source is: **(A)** `src/styles/tokens/*.css` already exists → skip; **(B)** a
+Claude Design `.dc.html` is the source → run
+`node assets/scripts/extract-dc.mjs <file> --out src/styles/tokens` (read
+`references/dc-to-tokens.md`); **(C)** otherwise → copy the default
+`assets/tokens/*.css`. Whichever branch, wire the 4 layers (raw → semantic →
+layout → component) via `@theme inline`. The self-referential `var(--x)`
+pattern is what keeps dark mode working (the cycle is invalid at
+computed-value time, so values come from `:root`/`.dark` by source order) —
+see gotcha #1 for the verified mechanism.
 
 **2. `Shell` + primitives.** Copy `assets/components/layout/` (Shell, Header,
 Footer, Sidebar, grid CSS). Grid Template Areas for the header/main/footer
@@ -104,12 +109,14 @@ contributors editing tokens directly — see `references/workflow.md`.
 
 ## Files
 - `assets/tokens/*.css` — the 4-layer token starter (copy verbatim, tweak values)
+- `assets/scripts/extract-dc.mjs` — DC `.dc.html` → 4-layer tokens (Step 1, branch B)
 - `assets/globals.css` — `@theme inline` wiring
 - `assets/components/layout/*` — Shell / Header / Footer / Sidebar / grid CSS
 - `assets/components/typography.tsx` — Typography (shadcn doesn't ship it)
 - `assets/playwright.config.ts`, `assets/e2e/smoke.spec.ts` — runtime gate
 - `scripts/verify.sh` — the 3-layer verify pipeline
 - `references/workflow.md` — the seven steps in detail (read per-step)
+- `references/dc-to-tokens.md` — DC `.dc.html` extraction (read for Step 1 branch B)
 - `references/shadcn-retrofit.md` — before/after class table (read at steps 4–5)
 - `references/gotchas.md` — base-ui / Tailwind v4 traps (read before step 5)
 - `evals/evals.json` + `evals/rubrics.md` — prompts + pass/fail checklists for benchmarking
