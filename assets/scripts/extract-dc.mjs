@@ -22,15 +22,14 @@
 // Zero dependencies — Node 20+ builtins only (fs, path, vm, crypto).
 //
 // Verification performed by this script (see _report.md): OKLCH math
-// self-check (hex→OKLCH→hex round-trip), var() color-ref integrity (by
-// construction — resolver refs only target scales that were actually
-// extracted), dark pair completeness, WCAG contrast on foreground/background
-// pairs, token coverage. NOTE: the DC_SPEC layout/component var() refs
-// (var(--space-N)/var(--radius-*)) are NOT validated — if the input lacks
-// those scales the refs dangle; _report.md §1 flags this when raw is empty. What it does NOT do: run a real CSS parser, a Next build, or a
-// browser render — see references/dc-to-tokens.md → "Verification beyond
-// this script" for the recommended gates (lightningcss, next build,
-// Playwright getComputedStyle).
+// self-check (hex→OKLCH→hex round-trip), var() ref integrity (every var()
+// in the emitted CSS must be defined somewhere in it — catches DC_SPEC
+// layout/component refs into absent scales, whether the input is a full
+// mockup or just missing one step), dark pair completeness, WCAG contrast on
+// foreground/background pairs, raw-scale coverage. What it does NOT do: run
+// a real CSS parser, a Next build, or a browser render — see
+// references/dc-to-tokens.md → "Verification beyond this script" for the
+// recommended gates (lightningcss, next build, Playwright getComputedStyle).
 //
 // Usage:
 //   node extract-dc.mjs <input.dc.html> [--out <dir>] [--no-manifest] [--strict]
@@ -488,7 +487,10 @@ function makeResolver({ slate, brandLight, brandDark }) {
 // Resolve one semantic role's value for one mode.
 function resolveRole(role, val, mode, resolver, rawSoft, literals) {
   if (role.kind === "shadow") {
-    if (mode === "dark") literals.push({ role: role.out, mode, reason: "box-shadow (not a color)" });
+    // box-shadow is a structural value, not a color — emitted verbatim in
+    // EITHER mode. Track both; the old `mode === "dark"` guard dropped the
+    // light-mode shadow row from §6.
+    literals.push({ role: role.out, mode, reason: "box-shadow (not a color)" });
     return val;
   }
   if (role.kind === "soft") {
@@ -500,8 +502,15 @@ function resolveRole(role, val, mode, resolver, rawSoft, literals) {
     literals.push({ role: role.out, mode, reason: "soft tint not in raw" });
     return toOklch(val);
   }
+  // "color" kind: resolver returns literal:true when the hex doesn't coincide
+  // with a materialized raw token (slate/brand/white/black). That happens in
+  // EITHER mode — dark neutrals off the slate ramp when the ramp is present,
+  // OR any role when the ramp is empty (mockup DC files whose renderVals()
+  // returns UI data). Track both modes; the old `mode === "dark"` guard
+  // silently dropped light-mode literals, so §6 under-reported whenever slate
+  // coverage was empty.
   const { ref, literal } = resolver(val);
-  if (literal && mode === "dark") literals.push({ role: role.out, mode, reason: "dark neutral off slate ramp" });
+  if (literal) literals.push({ role: role.out, mode, reason: "off materialized raw scale (slate/brand/white/black)" });
   return ref;
 }
 
@@ -572,6 +581,39 @@ function emitComponent() {
   return declBlock(":root", DC_SPEC.component.map(([n, v, why]) => ({ name: n, value: v, comment: why })));
 }
 
+// ===================== dangling-ref check ========================= //
+// Self-consistency check on the converter's OWN output: every var(--token)
+// referenced across the four emitted files must be defined in one of them.
+// The footgun is DC_SPEC — it emits var(--space-N)/var(--radius-*) refs that
+// only resolve if the input DC actually exposed those scales. A mockup DC
+// (renderVals returns UI data, not scales) OR a partial token set leaves
+// those refs pointing at undefined tokens, which render as 'unset'. The old
+// §1 warning only fired when ALL scales were empty; this catches the partial
+// case too (e.g. spacing present but missing the exact step DC_SPEC needs).
+// Scope is deliberately the converter's own files — it can't know which
+// tokens the consuming project fills in separately, so it only flags refs
+// that nothing in the emitted output defines.
+function findDanglingRefs(fileMap) {
+  const strip = (body) => body.replace(/\/\*[\s\S]*?\*\//g, "");
+  const defined = new Set();
+  for (const body of Object.values(fileMap)) {
+    for (const m of strip(body).matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(m[1]);
+  }
+  const dangling = [];
+  const seen = new Set();
+  for (const [file, body] of Object.entries(fileMap)) {
+    for (const m of strip(body).matchAll(/var\(\s*(--[a-z0-9-]+)/g)) {
+      const name = m[1];
+      if (defined.has(name)) continue;
+      const key = `${file}:${name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dangling.push({ file, name });
+    }
+  }
+  return dangling;
+}
+
 // ===================== manifest + report ========================== //
 function emitManifest({ sourceName, sha, themes, slate, spacing, radii, type, brandLight, report }) {
   const tokens = [];
@@ -600,6 +642,7 @@ function emitManifest({ sourceName, sha, themes, slate, spacing, radii, type, br
     omitted_roles: OMITTED_ROLES,
     dark_pairs_complete: report.darkMissing.length === 0,
     dark_missing: report.darkMissing,
+    dangling_refs: [...new Set((report.dangling || []).map((d) => d.name))],
     counts: {
       slate: slate.length, brand: Object.keys(brandLight).length, spacing: spacing.length,
       radii: radii.length, type: type.length, semantic_roles: SEMANTIC_ROLES.length,
@@ -644,7 +687,11 @@ function emitReport({ sourceName, sha, themes, slate, spacing, radii, type, bran
   L.push(`- ℹ️ **구조/컴포넌트 값(DC_SPEC)은 \`Design Tokens.dc.html\` 기준 상수** — header-height·button radius·focus ring 등을 이 파일에서 발췌해 모든 입력에 적용. 입력 DC가 다르면 값이 다를 수 있으니 layout.css/component.css를 재확인할 것.`);
   const lowCoverage = slate.length === 0 && spacing.length === 0 && radii.length === 0 && type.length === 0;
   if (lowCoverage) L.push(`- ⚠️ **raw 스케일 비어 있음** — renderVals에서 slate/spacing/radii/type를 얻지 못함. semantic.css는 정상이나 raw 계층이 빈 상태로 설치될 수 있음.`);
-  if (lowCoverage) L.push(`- ⚠️ **layout.css / component.css var() 참조 단절** — 이 파일들의 \`var(--space-N)\`·\`var(--radius-*)\` 참조가 raw.css에 정의되지 않아 깨짐. 구조값을 별도 채우거나 해당 DC 소스에 scale 배열을 추가할 것.`);
+  const dangling = report.dangling || [];
+  if (dangling.length) {
+    const danglingTokens = [...new Set(dangling.map((d) => d.name))];
+    L.push(`- ⚠️ **${danglingTokens.length}개 단절 \`var()\` 참조** — layout.css/component.css가 raw.css에 정의되지 않은 토큰을 참조해 렌더 시 \`unset\`으로 처리됨: ${danglingTokens.map((t) => `\`${t}\``).join(", ")}. 해결: 기본 \`assets/tokens/raw.css\`에서 누락 스케일(\`--space-*\`·\`--radius-*\`·\`--text-*\`)을 보충하거나, DC 소스에 scale 배열을 추가 후 재변환.`);
+  }
   if (unparsable.size) L.push(`- ⚠️ **변환 불가 색** (원문 그대로 방출): ${[...unparsable].map((s) => `\`${s}\``).join(", ")}`);
   L.push(``);
 
@@ -816,6 +863,11 @@ function main() {
   const componentCss = emitComponent();
 
   const files = { "raw.css": rawCss, "semantic.css": semanticCss, "layout.css": layoutCss, "component.css": componentCss };
+  // Self-consistency: flag var() refs in the emitted CSS that no emitted file
+  // defines (mostly DC_SPEC refs into absent scales). Surfaced in §1, stdout,
+  // the manifest, and --strict — see findDanglingRefs.
+  const dangling = findDanglingRefs(files);
+  report.dangling = dangling;
   for (const [name, body] of Object.entries(files)) {
     fs.writeFileSync(path.join(outDir, name), fileHeader(`${name} —`, sourceName, sha) + "\n" + body + "\n");
   }
@@ -834,11 +886,20 @@ function main() {
   out(`  semantic: ${SEMANTIC_ROLES.length} roles (${OMITTED_ROLES.length} omitted), dark pairs ${report.darkMissing.length === 0 ? "complete ✅" : "MISSING ❌ " + report.darkMissing}`);
   if (report.warning) out(`  ⚠ ${report.warning}`);
   if (unparsable.size) out(`  ⚠ unparsable colors emitted verbatim: ${[...unparsable].join(", ")}`);
+  if (dangling.length) {
+    const uniq = [...new Set(dangling.map((d) => d.name))];
+    out(`  ⚠ SCAFFOLD: ${dangling.length} dangling var() ref(s) [${uniq.length} unique] — layout/component reference tokens not defined in raw.css: ${uniq.join(", ")}`);
+    out(`    these render as 'unset' — fill the missing raw scales before Step 6`);
+  }
 
   if (args.strict) {
     if (report.darkMissing.length) strictFailures.push("dark pairs incomplete");
     if (slate.length === 0 && spacing.length === 0 && radii.length === 0 && type.length === 0)
       strictFailures.push("raw scale coverage empty");
+    if (dangling.length) {
+      const uniq = [...new Set(dangling.map((d) => d.name))];
+      strictFailures.push(`dangling var() refs: ${uniq.join(", ")}`);
+    }
     // WCAG fail check
     const roleToDc = Object.fromEntries(SEMANTIC_ROLES.map((r) => [r.out, r.dc]));
     for (const [fg, bg] of CONTRAST_PAIRS) {

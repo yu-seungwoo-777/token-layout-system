@@ -21,6 +21,7 @@ import { spawnSync } from "node:child_process";
 const SCRIPT_DIR = path.dirname(new URL(import.meta.url).pathname);
 const CONVERTER = path.join(SCRIPT_DIR, "extract-dc.mjs");
 const FIXTURE = path.join(SCRIPT_DIR, "__fixtures__", "mini.dc.html");
+const MOCKUP_FIXTURE = path.join(SCRIPT_DIR, "__fixtures__", "mini-mockup.dc.html");
 
 function runConverter(outDir, extra = []) {
   return spawnSync(process.execPath, [CONVERTER, FIXTURE, "--out", outDir, ...extra], {
@@ -142,6 +143,73 @@ test("--strict still fails on the WCAG-AA muted-foreground pair (light)", () => 
     const res = runConverter(out, ["--strict"]);
     assert.notEqual(res.status, 0, "--strict should exit non-zero on a WCAG fail");
     assert.match(res.stderr, /WCAG AA fail/);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("§6 reports light-mode literals when the slate ramp is empty (mockup DC)", () => {
+  // A mockup .dc.html carries the theme blocks (so semantic.css is generated)
+  // but its renderVals() returns UI data, not token arrays — the "raw scales
+  // empty" degradation path. With slate absent, every light-mode color role
+  // resolves to an OKLCH literal, and §6 must list those light rows. Before
+  // the resolveRole fix, only `mode === "dark"` literals were tracked, so §6
+  // silently dropped light-mode literals and under-reported the real count.
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out], {
+      encoding: "utf8",
+    });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    const report = fs.readFileSync(path.join(out, "_report.md"), "utf8");
+    // §1 must warn the raw scales are empty (the degradation path fired).
+    assert.match(report, /raw 스케일 비어 있음/);
+    // §6 must now contain light-mode literal rows. Slice the §6 section so the
+    // assertion can't match a stray "light" elsewhere in the report.
+    const section6 = report.slice(report.indexOf("## 6."), report.indexOf("## 7."));
+    assert.match(section6, /\| light \|/, "§6 missing light-mode literal rows (regression: resolveRole dropped light literals)");
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("flags dangling var() refs when raw scales are partial/empty (mockup DC)", () => {
+  // DC_SPEC emits var(--space-N)/var(--radius-*) refs in layout/component. On
+  // a mockup DC the scales aren't extracted, so those refs point at undefined
+  // tokens and render as 'unset'. The converter must surface this loudly — in
+  // stdout (default run), §1 (precise token list), and the manifest — so a
+  // faithful-but-broken scaffold can't pass silently (gotcha #8, applied to
+  // token generation).
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out], {
+      encoding: "utf8",
+    });
+    assert.equal(res.status, 0, `converter failed: ${res.stderr}`);
+    // default run prints a SCAFFOLD warning to stdout
+    assert.match(res.stdout, /SCAFFOLD.*dangling var\(\) ref/);
+    const report = fs.readFileSync(path.join(out, "_report.md"), "utf8");
+    // §1 lists the precise dangling tokens (DC_SPEC spacing + radius refs)
+    assert.match(report, /단절.*var\(\).*참조/);
+    assert.match(report, /`--space-7`/);
+    assert.match(report, /`--radius-control`/);
+    // manifest records them for CI consumers
+    const manifest = JSON.parse(fs.readFileSync(path.join(out, "_manifest.json"), "utf8"));
+    assert.ok(Array.isArray(manifest.dangling_refs), "manifest missing dangling_refs");
+    assert.ok(manifest.dangling_refs.includes("--space-7"), "manifest dangling_refs missing --space-7");
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("--strict fails on dangling var() refs", () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "extract-dc-test-"));
+  try {
+    const res = spawnSync(process.execPath, [CONVERTER, MOCKUP_FIXTURE, "--out", out, "--strict"], {
+      encoding: "utf8",
+    });
+    assert.notEqual(res.status, 0, "--strict should exit non-zero on dangling refs");
+    assert.match(res.stderr, /dangling var\(\) refs/);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
