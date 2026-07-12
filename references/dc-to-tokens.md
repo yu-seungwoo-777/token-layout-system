@@ -42,6 +42,57 @@ another. Internalize these — don't memorize a script.
    src/styles/tokens` (dangling refs, Typography deps, dark-pair completeness,
    WCAG). Format-independent: same checks whatever produced the tokens.
 
+## When extraction gets hard: two failure modes
+
+Extraction from a real source will hit difficulty. There are **two distinct
+directions** it comes from — handle each differently. The rule in both:
+**surface it, don't silently resolve it.** A defensible choice buried in the
+output is still a silent design decision. This operationalizes principle 6
+(faithful-over-defaults) for the cases where you can't simply preserve.
+
+**1. Insufficient content — the source designates *no* value for a role you
+need.** The role exists in the 4-layer model but the source has nothing (or
+nothing usable) for it: no error color, no dark mode, no `--leading-*`/
+`--weight-*` scale, a value that won't convert (out of gamut, bad unit).
+- Flag the gap in the output + report.
+- If there is **one principled fill**, apply it *and* flag it: Shell primitives
+  (skill plumbing), an error color from a standard `--red-*` scale (pick a
+  brand-appropriate red), a missing leading/weight scale copied from
+  `assets/tokens/raw.css` and flagged as skill plumbing — not a source value.
+  A value that won't convert is emitted as-is and flagged — faithful, visibly
+  broken.
+- If it's a **conscious product decision**, stop and ask — *"No dark mode in the
+  source — fabricate one, or is single-theme intentional?"* Don't invent a
+  design choice.
+- The reference adapter's stance here is **omit-and-flag**, not auto-fill — it
+  omits `--color-danger` and lets you fill the `--red-*` scale in wiring.
+  `verify-tokens.mjs` catches the gaps that slip through (missing Typography
+  deps, dangling refs, absent `.dark`).
+
+**2. Intent ambiguity — the source fills a role *unclearly*.** It designates
+multiple candidates for one role, contradicts itself, or leaves candidates with
+no designated choice: "pills for buttons" *and* "radius-md 12px for buttons";
+`--color-border` drawn from a palette that defines no border token (candidates
+exist — ink-400, a tint, a derived neutral — none designated); card border 0 vs
+1px.
+- **Stop and ask.** Present the concrete interpretations as options — *"border →
+  ink-400 (warm neutral) / orange-100 (tint) / a new derived neutral — which?"*
+  — let the designer decide, regenerate on their choice.
+- This can't be auto-detected from output alone (verification sees the result,
+  not the source's ambiguity), so it must be handled during extraction by
+  following this protocol.
+
+**Not a difficulty — just bookkeeping.** Source tokens the 4-layer model has no
+role for (animations, z-index, breakpoints, one-off shadows) are neither #1 nor
+#2: the source is present and unambiguous, there's just nowhere to put it. Drop
+them and note it in the report. Difficulty is about roles you *need*, not values
+you can't *place*. Separately, a faithful value that fails a hard external
+constraint (WCAG) is a **trade-off**, not an ambiguity — see *접근성 (WCAG)*
+below.
+
+Quick sort: **the source designates no value for a needed role → #1. Multiple /
+contradictory / none-designated → #2. Nowhere to put it → drop + note.**
+
 ## The `.dc.html` reference adapter
 
 `extract-dc.mjs` is the worked example for the `.dc.html` format. Read it as an

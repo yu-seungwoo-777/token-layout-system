@@ -79,6 +79,14 @@ verify with `node assets/scripts/verify-tokens.mjs src/styles/tokens`
 (format-independent: dangling `var()` refs, Typography deps, dark-pair
 completeness, WCAG).
 
+When extraction gets hard, it's one of two things — handle each by **surfacing,
+not silently resolving** (see `references/dc-to-tokens.md` → *When extraction
+gets hard*): **(a) insufficient content** (the source lacks a needed token —
+flag it, fill with a principled default + flag, or stop-and-ask if it's a
+product decision like dark mode) vs **(b) intent ambiguity** (the source has
+values but they contradict or map to one role multiple ways — stop-and-ask with
+concrete options, then regenerate). The default when unsure is ask, not pick.
+
 **2. `Shell` + primitives.** Copy `assets/components/layout/` (Shell, Header,
 Footer, Sidebar, grid CSS). Grid Template Areas for the header/main/footer
 regions, driven entirely from layout tokens.
